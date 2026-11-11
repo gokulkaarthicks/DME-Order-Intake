@@ -18,7 +18,7 @@ Start the FastAPI backend on port 8001, then:
 npm run dev
 ```
 
-Vite proxies `/api` and `/health` to `http://127.0.0.1:8001`.
+Vite proxies `/api` and `/health` to `http://127.0.0.1:8001` locally. Under Compose, `VITE_PROXY_TARGET` directs the proxy to `http://backend:8001`. See the root README for full-stack Docker startup.
 
 ## Scripts
 

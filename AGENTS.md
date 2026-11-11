@@ -50,7 +50,7 @@ These decisions implement the assessment requirements. They are **not** themselv
 | Backend | Python + FastAPI + Pydantic v2 | Assessment compliance; typed HTTP boundaries |
 | Frontend | React + TypeScript + Vite + simple CSS | User-selected minimal UI; typed contracts |
 | Database | PostgreSQL + SQLAlchemy 2 + Alembic | Persistence, ownership, migrations |
-| Local development | PostgreSQL runs in Docker; FastAPI and React run locally against that database | Simple local loop without containerizing the whole app during development |
+| Local development | PostgreSQL, FastAPI, and React run as coordinated Docker Compose services for local development | One-command startup with hot reload and the existing database volume |
 | PDF handling | PyMuPDF page rendering into images for multimodal extraction | Works with scanned and image-only pages; no dedicated OCR service |
 | AI extraction | Official DeepSeek API at `https://api.deepseek.com` using model `deepseek-flash` (DeepSeek V4.1 Flash; env `DEEPSEEK_API_KEY`) behind one replaceable extraction interface/adapter | Structured multimodal extraction; provider details stay inside the adapter |
 | Authentication | Username and hashed passwords + short-lived signed bearer tokens for **DME employees** | Minimal secure stateless auth matching assessment ownership rules |
@@ -242,7 +242,8 @@ The only required healthcare data is what the assessment asks to extract. Any ex
 - 2026-11-11 | Username/password authentication replaces email/password | User-directed authentication refactor | Approved by user | Migrate existing users and update auth contracts, UI, and tests; email authentication, email verification, two-step authentication, and password recovery remain out of scope
 
 - 2026-11-11 | Stack: FastAPI + React/TypeScript/Vite + PostgreSQL | Aligns with assessment and user frontend choice | Approved by user | Defines local and deploy implementation path
-- 2026-11-11 | Local Postgres in Docker; FastAPI and React run locally | Fast local development without full-stack containerization | Approved by user | Affects README and local setup; production still needs a public host and managed/hosted Postgres
+- 2026-11-11 | Local Postgres in Docker; FastAPI and React run locally | Superseded by the full Compose decision below | Approved by user | Historical decision
+- 2026-11-11 | Run Postgres, FastAPI, and React using Docker Compose for development | User requested one-command startup | Approved by user | Preserve the existing Postgres volume, run migrations before serving, and use Docker service networking
 - 2026-11-11 | AI extraction via official DeepSeek API at `https://api.deepseek.com`, model `deepseek-flash` (DeepSeek V4.1 Flash), env `DEEPSEEK_API_KEY`, + PyMuPDF; isolated behind a replaceable extraction interface | Meets scanned/multi-page extraction without dedicated OCR; direct DeepSeek API preferred | Approved by user | Requires `DEEPSEEK_API_KEY`; DeepSeek client details stay in the adapter only
 - 2026-11-11 | Modular monolith with DI and pragmatic SOLID/DRY/KISS/YAGNI | Keeps code modifiable for pair follow-up | Approved by user | No new frameworks
 - 2026-11-11 | MVP in-scope: DME employee auth, upload, five-field extract, validation, Postgres, user-isolated CRUD, public deploy | Matches assessment success path | Approved by user | Bounds product surface

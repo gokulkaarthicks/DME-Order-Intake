@@ -6,7 +6,7 @@ Python FastAPI foundation for the DME Order Intake MVP.
 
 - Python 3.12+
 - pip (or an equivalent installer such as uv)
-- Docker Desktop (or Docker Engine + Compose) for local PostgreSQL only
+- Docker Desktop (or Docker Engine + Compose) for local services
 - `DEEPSEEK_API_KEY` for live PDF extraction
 
 ## Layout
@@ -25,7 +25,7 @@ alembic/         # Database migrations
 
 ## Local PostgreSQL (Docker)
 
-From the repository root, start only PostgreSQL:
+From the repository root, start all services (see the root README for configuration):
 
 ```bash
 docker compose up -d
@@ -39,7 +39,7 @@ Defaults (override with a root `.env` if needed):
 - Database: `dme_order_intake`
 - Host port: `127.0.0.1:5434` (localhost only; avoids a common clash with system Postgres on 5432)
 
-Stop PostgreSQL:
+Stop the services:
 
 ```bash
 docker compose down
@@ -70,7 +70,7 @@ alembic upgrade head
 alembic current
 ```
 
-Schema changes must go through Alembic. The API does not call `create_all` on startup.
+Schema changes must go through Alembic. Compose runs `alembic upgrade head` before starting the API. The API does not call `create_all` on startup.
 
 ## Run the API (on the laptop, not in Docker)
 
