@@ -1,13 +1,15 @@
-"""Authenticated order CRUD endpoints."""
+"""Authenticated order CRUD and PDF upload endpoints."""
 
 from __future__ import annotations
 
 from uuid import UUID
 
-from fastapi import APIRouter, HTTPException, Response, status
+from fastapi import APIRouter, File, HTTPException, Response, UploadFile, status
 
-from app.api.deps import CurrentUserDep, OrderServiceDep
+from app.api.deps import CurrentUserDep, ExtractionServiceDep, OrderServiceDep
+from app.schemas.extraction import ExtractedFieldsResponse, OrderUploadResponse
 from app.schemas.order import OrderCreate, OrderPublic, OrderUpdate
+from app.services.extraction_service import ExtractionFailedError, UploadRejectedError
 from app.services.order_service import OrderNotFoundError
 
 router = APIRouter(prefix="/api/orders", tags=["orders"])
@@ -36,6 +38,48 @@ def list_orders(
     """List orders owned by the authenticated DME employee."""
     orders = order_service.list_for_user(current_user)
     return [OrderPublic.model_validate(order) for order in orders]
+
+
+@router.post("/upload", response_model=OrderUploadResponse)
+async def upload_order_pdf(
+    current_user: CurrentUserDep,
+    extraction_service: ExtractionServiceDep,
+    file: UploadFile = File(...),
+) -> OrderUploadResponse:
+    """Extract order fields from an uploaded PDF and persist only when valid."""
+    file_bytes = await file.read()
+    try:
+        result = extraction_service.process_upload(
+            user=current_user,
+            file_bytes=file_bytes,
+            filename=file.filename,
+            content_type=file.content_type,
+        )
+    except UploadRejectedError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(exc),
+        ) from exc
+    except ExtractionFailedError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=str(exc),
+        ) from exc
+
+    return OrderUploadResponse(
+        status=result.status,  # type: ignore[arg-type]
+        saved=result.saved,
+        order_id=result.order_id,
+        order=result.order,
+        extracted=ExtractedFieldsResponse(
+            patient_first_name=result.extracted.patient_first_name,
+            patient_last_name=result.extracted.patient_last_name,
+            patient_dob=result.extracted.patient_dob,
+            provider_name=result.extracted.provider_name,
+            provider_npi=result.extracted.provider_npi,
+        ),
+        errors=result.errors,
+    )
 
 
 @router.get("/{order_id}", response_model=OrderPublic)

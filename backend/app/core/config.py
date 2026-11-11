@@ -48,6 +48,44 @@ class Settings(BaseSettings):
         description="Access token lifetime in minutes",
     )
 
+    deepseek_api_key: str = Field(
+        default="",
+        description="DeepSeek API key for multimodal PDF extraction",
+    )
+    deepseek_base_url: str = Field(
+        default="https://api.deepseek.com",
+        description="DeepSeek API base URL",
+    )
+    deepseek_model: str = Field(
+        default="deepseek-flash",
+        description="DeepSeek model identifier",
+    )
+    deepseek_timeout_seconds: float = Field(
+        default=60.0,
+        gt=0,
+        description="HTTP timeout for DeepSeek extraction requests",
+    )
+    deepseek_max_retries: int = Field(
+        default=2,
+        ge=0,
+        description="Retries for transient DeepSeek failures",
+    )
+    pdf_max_upload_bytes: int = Field(
+        default=10 * 1024 * 1024,
+        gt=0,
+        description="Maximum accepted PDF upload size in bytes",
+    )
+    pdf_max_pages: int = Field(
+        default=20,
+        ge=1,
+        description="Maximum accepted PDF page count",
+    )
+    pdf_render_dpi: int = Field(
+        default=150,
+        ge=72,
+        description="DPI used when rendering PDF pages to images",
+    )
+
 
 @lru_cache
 def get_settings() -> Settings:

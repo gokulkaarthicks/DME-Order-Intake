@@ -10,9 +10,13 @@ from app.core.config import Settings, get_settings
 from app.core.security import TokenValidationError, verify_access_token
 from app.db.models import User
 from app.db.session import get_db
+from app.integrations.deepseek import DeepSeekExtractor
+from app.integrations.extraction import OrderFieldExtractor
+from app.integrations.pdf_processor import PDFProcessor
 from app.repositories.order_repository import OrderRepository
 from app.repositories.user_repository import UserRepository
 from app.services.auth_service import AuthService
+from app.services.extraction_service import ExtractionService
 from app.services.order_service import OrderService
 
 SettingsDep = Annotated[Settings, Depends(get_settings)]
@@ -65,6 +69,43 @@ def get_order_service(
 
 
 OrderServiceDep = Annotated[OrderService, Depends(get_order_service)]
+
+
+def get_pdf_processor(settings: SettingsDep) -> PDFProcessor:
+    """Build the PDF processor from application settings."""
+    return PDFProcessor(
+        max_pages=settings.pdf_max_pages,
+        render_dpi=settings.pdf_render_dpi,
+    )
+
+
+PdfProcessorDep = Annotated[PDFProcessor, Depends(get_pdf_processor)]
+
+
+def get_order_field_extractor(settings: SettingsDep) -> OrderFieldExtractor:
+    """Build the configured extraction provider adapter."""
+    return DeepSeekExtractor(settings)
+
+
+OrderFieldExtractorDep = Annotated[OrderFieldExtractor, Depends(get_order_field_extractor)]
+
+
+def get_extraction_service(
+    settings: SettingsDep,
+    pdf_processor: PdfProcessorDep,
+    extractor: OrderFieldExtractorDep,
+    order_service: OrderServiceDep,
+) -> ExtractionService:
+    """Build a request-scoped extraction orchestration service."""
+    return ExtractionService(
+        pdf_processor=pdf_processor,
+        extractor=extractor,
+        order_service=order_service,
+        max_upload_bytes=settings.pdf_max_upload_bytes,
+    )
+
+
+ExtractionServiceDep = Annotated[ExtractionService, Depends(get_extraction_service)]
 
 
 def get_current_user(

@@ -7,17 +7,18 @@ Python FastAPI foundation for the DME Order Intake MVP.
 - Python 3.12+
 - pip (or an equivalent installer such as uv)
 - Docker Desktop (or Docker Engine + Compose) for local PostgreSQL only
+- `DEEPSEEK_API_KEY` for live PDF extraction
 
 ## Layout
 
 ```text
 app/
   api/           # HTTP routes and FastAPI dependencies
-  core/          # Settings, logging, error handlers
+  core/          # Settings, logging, error handlers, NPI helpers
   schemas/       # Pydantic request/response models
-  services/      # Business logic (future)
+  services/      # Business logic (auth, orders, extraction)
   db/            # Engine, sessions, ORM models
-  integrations/  # External adapters such as AI extraction (future)
+  integrations/  # PDF processor and DeepSeek extraction adapter
   main.py        # Application entry point
 alembic/         # Database migrations
 ```
@@ -57,7 +58,7 @@ pip install -e .
 cp .env.example .env
 ```
 
-Edit `.env` as needed. Keep `DATABASE_URL` aligned with the Compose credentials. Do not commit real secrets.
+Edit `.env` as needed. Keep `DATABASE_URL` aligned with the Compose credentials. Set `JWT_SECRET_KEY` and `DEEPSEEK_API_KEY`. Do not commit real secrets.
 
 ## Database migrations
 
@@ -84,6 +85,14 @@ Health check:
 curl http://127.0.0.1:8000/health
 ```
 
+PDF upload (authenticated):
+
+```bash
+curl -X POST http://127.0.0.1:8000/api/orders/upload \
+  -H "Authorization: Bearer <access_token>" \
+  -F "file=@order.pdf;type=application/pdf"
+```
+
 Interactive docs (development): [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs)
 
 ## Tests
@@ -95,11 +104,15 @@ pip install -e ".[test]"
 pytest
 ```
 
+DeepSeek calls are mocked in automated tests. Live model verification requires `DEEPSEEK_API_KEY`.
+
 ## Notes
 
 - Auth endpoints: `POST /api/auth/register` and `POST /api/auth/login`.
 - Order CRUD endpoints: `POST/GET/PATCH/DELETE /api/orders` (JWT required; ownership enforced).
-- Set `JWT_SECRET_KEY` to a unique value of at least 32 characters before logging in. Do not commit real secrets.
+- PDF upload: `POST /api/orders/upload` extracts five fields via DeepSeek (`deepseek-flash`) and persists only when validation passes.
+- Upload responses use `status=created` with `saved=true`, or `status=needs_review` with `saved=false` plus field errors.
+- Original PDFs are processed in memory only and are not stored permanently.
 - ORM models live in `app/db/models.py` and stay separate from API request/response schemas.
 - SQLAlchemy 2.0 uses synchronous sessions with Psycopg 3. Request handlers obtain a session through `DbSessionDep`.
 - Configuration is loaded via Pydantic Settings from environment variables and an optional `.env` file.
