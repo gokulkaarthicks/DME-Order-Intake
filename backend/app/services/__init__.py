@@ -1,1 +1,15 @@
-"""Application services implementing business rules (added as features land)."""
+"""Application services implementing business rules."""
+
+from app.services.auth_service import (
+    AuthError,
+    AuthService,
+    DuplicateEmailError,
+    InvalidCredentialsError,
+)
+
+__all__ = [
+    "AuthError",
+    "AuthService",
+    "DuplicateEmailError",
+    "InvalidCredentialsError",
+]
