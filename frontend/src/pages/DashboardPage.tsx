@@ -8,7 +8,6 @@ import type { OrderPublic } from '../types/api'
 interface DashboardPageProps {
   onLogout: () => void
   onUpload: () => void
-  onCreate: () => void
   onEdit: (orderId: string) => void
   refreshKey: number
 }
@@ -16,7 +15,6 @@ interface DashboardPageProps {
 export function DashboardPage({
   onLogout,
   onUpload,
-  onCreate,
   onEdit,
   refreshKey,
 }: DashboardPageProps) {
@@ -66,9 +64,6 @@ export function DashboardPage({
         <>
           <button type="button" className="button button-secondary" onClick={onUpload}>
             Upload PDF
-          </button>
-          <button type="button" className="button button-primary" onClick={onCreate}>
-            New order
           </button>
           <button type="button" className="button button-secondary" onClick={onLogout}>
             Sign out

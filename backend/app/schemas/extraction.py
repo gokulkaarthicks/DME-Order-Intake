@@ -31,3 +31,4 @@ class OrderUploadResponse(BaseModel):
     order: OrderPublic | None = None
     extracted: ExtractedFieldsResponse
     errors: dict[str, str] = Field(default_factory=dict)
+    review_token: str | None = None

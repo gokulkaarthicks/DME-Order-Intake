@@ -4,30 +4,17 @@ from __future__ import annotations
 
 from uuid import UUID
 
-from fastapi import APIRouter, File, HTTPException, Response, UploadFile, status
+from fastapi import APIRouter, File, Form, HTTPException, Response, UploadFile, status
+from pydantic import ValidationError
 
 from app.api.deps import CurrentUserDep, ExtractionServiceDep, OrderServiceDep
+
 from app.schemas.extraction import ExtractedFieldsResponse, OrderUploadResponse
 from app.schemas.order import OrderCreate, OrderPublic, OrderUpdate
 from app.services.extraction_service import ExtractionFailedError, UploadRejectedError
 from app.services.order_service import OrderNotFoundError
 
 router = APIRouter(prefix="/api/orders", tags=["orders"])
-
-
-@router.post(
-    "",
-    response_model=OrderPublic,
-    status_code=status.HTTP_201_CREATED,
-)
-def create_order(
-    payload: OrderCreate,
-    current_user: CurrentUserDep,
-    order_service: OrderServiceDep,
-) -> OrderPublic:
-    """Create an order owned by the authenticated DME employee."""
-    order = order_service.create(current_user, payload)
-    return OrderPublic.model_validate(order)
 
 
 @router.get("", response_model=list[OrderPublic])
@@ -45,8 +32,21 @@ async def upload_order_pdf(
     current_user: CurrentUserDep,
     extraction_service: ExtractionServiceDep,
     file: UploadFile = File(...),
+    corrections: str | None = Form(None),
+    review_token: str | None = Form(None),
 ) -> OrderUploadResponse:
     """Extract order fields from an uploaded PDF and persist only when valid."""
+    if (corrections is None) != (review_token is None):
+        raise HTTPException(status_code=400, detail="Corrections and review token are required together")
+    corrected = None
+    if corrections is not None:
+        try:
+            corrected = OrderCreate.model_validate_json(corrections)
+        except ValidationError as exc:
+            raise HTTPException(status_code=422, detail=[
+                {"loc": ["body", *error["loc"]], "msg": error["msg"], "type": error["type"]}
+                for error in exc.errors()
+            ]) from exc
     file_bytes = await file.read()
     try:
         result = extraction_service.process_upload(
@@ -54,6 +54,8 @@ async def upload_order_pdf(
             file_bytes=file_bytes,
             filename=file.filename,
             content_type=file.content_type,
+            corrections=corrected,
+            review_token=review_token,
         )
     except UploadRejectedError as exc:
         raise HTTPException(
@@ -79,6 +81,7 @@ async def upload_order_pdf(
             provider_npi=result.extracted.provider_npi,
         ),
         errors=result.errors,
+        review_token=result.review_token,
     )
 
 

@@ -56,6 +56,7 @@ export interface OrderUploadResponse {
   order: OrderPublic | null
   extracted: ExtractedFields
   errors: Record<string, string>
+  review_token: string | null
 }
 
 export interface FastApiValidationIssue {

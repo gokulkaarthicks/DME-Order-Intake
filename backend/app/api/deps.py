@@ -102,6 +102,7 @@ def get_extraction_service(
         extractor=extractor,
         order_service=order_service,
         max_upload_bytes=settings.pdf_max_upload_bytes,
+        settings=settings,
     )
 
 

@@ -12,10 +12,11 @@ type AppView =
   | { name: 'register' }
   | { name: 'dashboard' }
   | { name: 'upload' }
-  | { name: 'create' }
   | { name: 'edit'; orderId: string }
   | {
       name: 'review'
+      file: File
+      reviewToken: string
       values: OrderCreateRequest
       fieldErrors: Record<string, string>
       notice: string
@@ -55,19 +56,9 @@ function AuthenticatedApp() {
       <UploadPage
         onBack={() => goDashboard()}
         onCreated={() => goDashboard(true)}
-        onNeedsReview={({ values, fieldErrors, notice }) =>
-          setView({ name: 'review', values, fieldErrors, notice })
+        onNeedsReview={({ file, reviewToken, values, fieldErrors, notice }) =>
+          setView({ name: 'review', file, reviewToken, values, fieldErrors, notice })
         }
-      />
-    )
-  }
-
-  if (view.name === 'create') {
-    return (
-      <OrderEditorPage
-        mode="create"
-        onBack={() => goDashboard()}
-        onSaved={() => goDashboard(true)}
       />
     )
   }
@@ -87,6 +78,8 @@ function AuthenticatedApp() {
     return (
       <OrderEditorPage
         mode="review"
+        file={view.file}
+        reviewToken={view.reviewToken}
         initialValues={view.values}
         initialFieldErrors={view.fieldErrors}
         notice={view.notice}
@@ -104,7 +97,6 @@ function AuthenticatedApp() {
         setView({ name: 'login' })
       }}
       onUpload={() => setView({ name: 'upload' })}
-      onCreate={() => setView({ name: 'create' })}
       onEdit={(orderId) => setView({ name: 'edit', orderId })}
     />
   )

@@ -83,11 +83,11 @@ Credentials and hosting access remain external inputs. Do not invent API keys, d
 
 ### Orders
 
-- Routes: `POST /api/orders`, `GET /api/orders`, `GET /api/orders/{id}`, `PATCH /api/orders/{id}`, `DELETE /api/orders/{id}`, `POST /api/orders/upload`.
+- Routes: `GET /api/orders`, `GET /api/orders/{id}`, `PATCH /api/orders/{id}`, `DELETE /api/orders/{id}`, `POST /api/orders/upload`.
 - JSON order fields are the five specified business fields; also persist `id`, `user_id`, `created_at`, `updated_at` as operational metadata.
 - `POST /api/orders/upload` accepts authenticated multipart PDF upload, extracts the five fields, validates them, and **persists only when all required fields pass validation**.
 - Invalid extraction responses return extracted nullable values and field-specific errors, explicitly indicating `saved: false`. Do not create placeholder or partial orders.
-- The frontend offers editable fields after unsuccessful extraction; corrected data goes through the same server-side validation when manually created.
+- The frontend offers editable fields after unsuccessful extraction; corrected data and the original PDF are resubmitted to the upload endpoint with a user-bound review token and go through the same server-side validation.
 - All create/update operations enforce the same field rules. Do not silently ignore invalid data.
 - Avoid unnecessary new fields, statuses, or tables. No permanent storage of original PDFs.
 
@@ -143,7 +143,7 @@ Automate critical behavior without paid-model calls:
 - User A can CRUD their orders; user B cannot read, update, or delete A's orders (including guessed IDs).
 - Uploaded valid PDF -> mocked extraction -> validated persisted order -> retrievable from database.
 - Missing/ambiguous values -> `null`/clear errors -> **no database write**.
-- Invalid DOB and bad NPI -> rejected before persistence, including manual creates/updates.
+- Invalid DOB and bad NPI -> rejected before persistence, including corrected uploads and updates.
 - Non-PDF, oversized, malformed, or empty uploads -> explicit rejection.
 - Model timeout or malformed response -> safe failure without partial data writes.
 
@@ -238,6 +238,8 @@ The only required healthcare data is what the assessment asks to extract. Any ex
 **Confirmed assessment mandates:** Section 2 (from the assessment PDF).
 
 **Confirmed user decisions (2026-11-11):**
+
+- 2026-11-11 | PDF upload is the only order creation path | User requested removal of manual creation | Approved by user | Corrections require the original PDF and a user-bound review token; order read, update, and delete remain available
 
 - 2026-11-11 | Username/password authentication replaces email/password | User-directed authentication refactor | Approved by user | Migrate existing users and update auth contracts, UI, and tests; email authentication, email verification, two-step authentication, and password recovery remain out of scope
 

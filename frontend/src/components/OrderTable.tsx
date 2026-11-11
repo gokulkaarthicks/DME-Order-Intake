@@ -17,7 +17,7 @@ function formatDate(value: string): string {
 
 export function OrderTable({ orders, onEdit, onDelete, busyOrderId }: OrderTableProps) {
   if (orders.length === 0) {
-    return <p className="muted">No orders yet. Upload a PDF or create an order manually.</p>
+    return <p className="muted">No orders yet. Upload a PDF to create one.</p>
   }
 
   return (

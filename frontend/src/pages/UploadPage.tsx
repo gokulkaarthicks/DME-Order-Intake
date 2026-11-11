@@ -8,6 +8,8 @@ interface UploadPageProps {
   onBack: () => void
   onCreated: () => void
   onNeedsReview: (payload: {
+    file: File
+    reviewToken: string
     values: OrderCreateRequest
     fieldErrors: Record<string, string>
     notice: string
@@ -47,7 +49,12 @@ export function UploadPage({ onBack, onCreated, onNeedsReview }: UploadPageProps
         return
       }
 
+      if (!result.review_token) {
+        throw new Error('Review is unavailable. Please upload the PDF again.')
+      }
       onNeedsReview({
+        file,
+        reviewToken: result.review_token,
         values: {
           patient_first_name: result.extracted.patient_first_name ?? '',
           patient_last_name: result.extracted.patient_last_name ?? '',

@@ -9,8 +9,25 @@ from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, select, text
 from sqlalchemy.orm import Session
 
+from app.api.deps import get_order_field_extractor
 from app.db.models import Order
+from app.integrations.extraction import ExtractedOrderFields
+from tests.pdf_fixtures import build_text_pdf, SAMPLE_ORDER_LINES
 from tests.conftest import TEST_DATABASE_URL, auth_header, register_and_login
+
+
+def create_via_upload(client: TestClient, headers: dict[str, str], payload: dict[str, str]):
+    class Extractor:
+        def extract(self, document):
+            return ExtractedOrderFields(**payload)
+    client.app.dependency_overrides[get_order_field_extractor] = lambda: Extractor()
+    try:
+        response = client.post("/api/orders/upload", headers=headers,
+                               files={"file": ("order.pdf", build_text_pdf(SAMPLE_ORDER_LINES), "application/pdf")})
+        assert response.status_code == 200 and response.json()["saved"] is True, response.text
+        return response.json()["order"]
+    finally:
+        client.app.dependency_overrides.pop(get_order_field_extractor, None)
 
 
 def test_create_list_get_update_delete_order(
@@ -20,9 +37,7 @@ def test_create_list_get_update_delete_order(
     token = register_and_login(client, "owner")
     headers = auth_header(token)
 
-    create_response = client.post("/api/orders", json=valid_order_payload, headers=headers)
-    assert create_response.status_code == 201
-    created = create_response.json()
+    created = create_via_upload(client, headers, valid_order_payload)
     order_id = created["id"]
     assert created["patient_first_name"] == "Ada"
     assert created["provider_npi"] == "1234567893"
@@ -62,40 +77,9 @@ def test_create_list_get_update_delete_order(
     assert missing.status_code == 404
 
 
-def test_invalid_dob_and_npi_rejected(
-    client: TestClient,
-    valid_order_payload: dict[str, str],
-) -> None:
-    token = register_and_login(client, "validator")
-    headers = auth_header(token)
-
-    future_dob = dict(valid_order_payload)
-    future_dob["patient_dob"] = (date.today() + timedelta(days=1)).isoformat()
-    assert client.post("/api/orders", json=future_dob, headers=headers).status_code == 422
-
-    bad_npi = dict(valid_order_payload)
-    bad_npi["provider_npi"] = "1234567890"
-    assert client.post("/api/orders", json=bad_npi, headers=headers).status_code == 422
-
-    with Session(create_engine(TEST_DATABASE_URL)) as session:
-        count = session.scalar(text("SELECT COUNT(*) FROM orders"))
-        assert count == 0
-
-
-def test_missing_and_blank_required_fields(
-    client: TestClient,
-    valid_order_payload: dict[str, str],
-) -> None:
-    token = register_and_login(client, "required")
-    headers = auth_header(token)
-
-    missing = dict(valid_order_payload)
-    missing.pop("patient_first_name")
-    assert client.post("/api/orders", json=missing, headers=headers).status_code == 422
-
-    blank = dict(valid_order_payload)
-    blank["patient_last_name"] = "   "
-    assert client.post("/api/orders", json=blank, headers=headers).status_code == 422
+def test_manual_creation_unavailable(client: TestClient, valid_order_payload: dict[str, str]) -> None:
+    token = register_and_login(client, "no_manual")
+    assert client.post("/api/orders", json=valid_order_payload, headers=auth_header(token)).status_code == 405
 
 
 def test_partial_update_rejects_null_and_blank(
@@ -104,8 +88,8 @@ def test_partial_update_rejects_null_and_blank(
 ) -> None:
     token = register_and_login(client, "patchuser")
     headers = auth_header(token)
-    created = client.post("/api/orders", json=valid_order_payload, headers=headers)
-    order_id = created.json()["id"]
+    created = create_via_upload(client, headers, valid_order_payload)
+    order_id = created["id"]
 
     null_update = client.patch(
         f"/api/orders/{order_id}",
@@ -129,7 +113,7 @@ def test_unauthenticated_order_access_returns_401(
     client: TestClient,
     valid_order_payload: dict[str, str],
 ) -> None:
-    assert client.post("/api/orders", json=valid_order_payload).status_code == 401
+    assert client.post("/api/orders", json=valid_order_payload).status_code == 405
     assert client.get("/api/orders").status_code == 401
     assert client.get(f"/api/orders/{uuid4()}").status_code == 401
     assert client.patch(
@@ -148,9 +132,8 @@ def test_cross_user_isolation(
     headers_a = auth_header(token_a)
     headers_b = auth_header(token_b)
 
-    created = client.post("/api/orders", json=valid_order_payload, headers=headers_a)
-    assert created.status_code == 201
-    order_id = created.json()["id"]
+    created = create_via_upload(client, headers_a, valid_order_payload)
+    order_id = created["id"]
 
     assert client.get(f"/api/orders/{order_id}", headers=headers_b).status_code == 404
     assert client.patch(
@@ -176,9 +159,8 @@ def test_validation_errors_do_not_echo_input_payload(
 ) -> None:
     token = register_and_login(client, "novalinput")
     headers = auth_header(token)
-    bad = dict(valid_order_payload)
-    bad["provider_npi"] = "1234567890"
-    response = client.post("/api/orders", json=bad, headers=headers)
+    created = create_via_upload(client, headers, valid_order_payload)
+    response = client.patch(f"/api/orders/{created['id']}", json={"provider_npi": "1234567890"}, headers=headers)
     assert response.status_code == 422
     detail = response.json()["detail"]
     assert isinstance(detail, list)
@@ -198,8 +180,8 @@ def test_user_specific_listing_order(
     second = dict(valid_order_payload)
     second["patient_first_name"] = "Second"
 
-    id_first = client.post("/api/orders", json=first, headers=headers).json()["id"]
-    id_second = client.post("/api/orders", json=second, headers=headers).json()["id"]
+    id_first = create_via_upload(client, headers, first)["id"]
+    id_second = create_via_upload(client, headers, second)["id"]
 
     listed = client.get("/api/orders", headers=headers).json()
     assert [item["id"] for item in listed] == [id_second, id_first]

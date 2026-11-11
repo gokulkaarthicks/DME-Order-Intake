@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Generator
+import json
 
 import pytest
 from fastapi.testclient import TestClient
@@ -263,3 +264,42 @@ def test_upstream_api_failure_returns_bad_gateway(client: TestClient) -> None:
     assert response.status_code == 502
     assert response.json()["detail"] == "Document extraction failed"
     assert _count_orders() == 0
+
+
+def test_corrections_require_original_pdf_and_review_owner(client: TestClient, valid_order_payload: dict[str, str]) -> None:
+    fake = FakeExtractor(ExtractedOrderFields("Jane", None, "1988-04-12", "Dr. Example", "1234567893"))
+    client.app.dependency_overrides[get_order_field_extractor] = lambda: fake
+    owner = auth_header(register_and_login(client, "review_owner"))
+    other = auth_header(register_and_login(client, "review_other"))
+    pdf = build_text_pdf(SAMPLE_ORDER_LINES)
+    files = {"file": ("order.pdf", pdf, "application/pdf")}
+    review = client.post("/api/orders/upload", headers=owner, files=files).json()
+    assert review["status"] == "needs_review" and not review["saved"]
+    token = review["review_token"]
+    data = {"corrections": json.dumps(valid_order_payload), "review_token": token}
+    assert client.post("/api/orders/upload", headers=owner, data=data).status_code == 422
+    assert client.post("/api/orders/upload", headers=other, data=data, files=files).status_code == 400
+    other_pdf = {"file": ("other.pdf", build_text_pdf(["different document"]), "application/pdf")}
+    assert client.post("/api/orders/upload", headers=owner, data=data, files=other_pdf).status_code == 400
+    assert client.post("/api/orders/upload", headers=owner, data={"corrections": data["corrections"]}, files=files).status_code == 400
+    assert client.get("/api/orders", headers={"Authorization": f"Bearer {token}"}).status_code == 401
+    bad = {**valid_order_payload, "provider_npi": "1234567890"}
+    response = client.post("/api/orders/upload", headers=owner, data={"corrections": json.dumps(bad), "review_token": token}, files=files)
+    assert response.status_code == 422
+    assert _count_orders() == 0
+    for invalid in (
+        {key: value for key, value in valid_order_payload.items() if key != "patient_last_name"},
+        {**valid_order_payload, "patient_first_name": "   "},
+        {**valid_order_payload, "patient_dob": "2999-01-01"},
+    ):
+        response = client.post("/api/orders/upload", headers=owner,
+            data={"corrections": json.dumps(invalid), "review_token": token}, files=files)
+        assert response.status_code == 422
+        assert _count_orders() == 0
+    saved = client.post("/api/orders/upload", headers=owner, data=data, files=files)
+    assert saved.status_code == 200 and saved.json()["saved"] is True
+    assert saved.json()["order"]["patient_first_name"] == valid_order_payload["patient_first_name"]
+    assert fake.calls == 1
+    assert _count_orders() == 1
+    assert client.get("/api/orders", headers=other).json() == []
+    client.app.dependency_overrides.pop(get_order_field_extractor, None)

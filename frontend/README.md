@@ -31,5 +31,5 @@ npm run build
 ## Notes
 
 - JWT access tokens are stored in `sessionStorage` for the browser session only.
-- PDF upload uses `POST /api/orders/upload`. When the response status is `created`, the order is already saved. When status is `needs_review`, the UI opens a correction form and saves through `POST /api/orders`.
+- PDF upload uses `POST /api/orders/upload`. When the response status is `created`, the order is already saved. When status is `needs_review`, the UI opens a correction form and resubmits corrected fields and the original PDF to `POST /api/orders/upload` using the short-lived review token.
 - DeepSeek credentials stay on the backend. The frontend never receives API keys.

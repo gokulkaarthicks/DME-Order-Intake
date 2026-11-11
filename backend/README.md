@@ -110,9 +110,9 @@ DeepSeek calls are mocked in automated tests. Live model verification requires `
 
 - Auth endpoints: `POST /api/auth/register` and `POST /api/auth/login` accept JSON such as `{"username":"employee_1","password":"your-password"}`. Usernames are trimmed, lowercased, 3 to 32 ASCII letters, digits, or underscores, and unique case-insensitively.
 - Existing accounts are migrated from email prefixes. Unsupported characters become underscores, short names are padded, and collisions receive numeric suffixes in user ID order. Ask an administrator for the assigned username if needed. Passwords and orders are preserved. The original email addresses are removed, so this migration cannot be downgraded without restoring a backup.
-- Order CRUD endpoints: `POST/GET/PATCH/DELETE /api/orders` (JWT required; ownership enforced).
+- Order endpoints: `GET /api/orders`, `GET/PATCH/DELETE /api/orders/{id}`, and `POST /api/orders/upload` (JWT required; ownership enforced). No standalone manual creation endpoint exists.
 - PDF upload: `POST /api/orders/upload` extracts five fields via DeepSeek (`deepseek-flash`) and persists only when validation passes.
-- Upload responses use `status=created` with `saved=true`, or `status=needs_review` with `saved=false` plus field errors.
+- Upload responses use `status=created` with `saved=true`, or `status=needs_review` with `saved=false`, field errors, and a short-lived review token. To submit corrections, send the original PDF as `file`, the token as `review_token`, and a JSON object with all five corrected fields as `corrections` in the same multipart upload. The token is bound to the authenticated user and PDF bytes and expires after 60 minutes. Re-upload if review expires. Review tokens are reusable until expiry, so repeating a successful submission can create a duplicate order.
 - Original PDFs are processed in memory only and are not stored permanently.
 - ORM models live in `app/db/models.py` and stay separate from API request/response schemas.
 - SQLAlchemy 2.0 uses synchronous sessions with Psycopg 3. Request handlers obtain a session through `DbSessionDep`.

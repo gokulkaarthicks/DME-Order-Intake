@@ -1,12 +1,14 @@
 import { useEffect, useState } from 'react'
-import { createOrder, getOrder, updateOrder } from '../api/orders'
+import { getOrder, updateOrder, uploadOrderPdf } from '../api/orders'
 import { AppShell } from '../components/AppShell'
 import { OrderForm } from '../components/OrderForm'
 import { StatusBanner } from '../components/StatusBanner'
 import { ApiError, EMPTY_ORDER_FORM, type OrderCreateRequest } from '../types/api'
 
 interface OrderEditorPageProps {
-  mode: 'create' | 'edit' | 'review'
+  mode: 'edit' | 'review'
+  file?: File
+  reviewToken?: string
   orderId?: string
   initialValues?: Partial<OrderCreateRequest>
   initialFieldErrors?: Record<string, string>
@@ -18,6 +20,8 @@ interface OrderEditorPageProps {
 export function OrderEditorPage({
   mode,
   orderId,
+  file,
+  reviewToken,
   initialValues,
   initialFieldErrors,
   notice,
@@ -78,8 +82,14 @@ export function OrderEditorPage({
     try {
       if (mode === 'edit' && orderId) {
         await updateOrder(orderId, nextValues)
+      } else if (mode === 'review' && file && reviewToken) {
+        const result = await uploadOrderPdf(file, nextValues, reviewToken)
+        if (!result.saved) {
+          setFieldErrors(result.errors)
+          throw new Error('Please correct the highlighted fields.')
+        }
       } else {
-        await createOrder(nextValues)
+        throw new Error('The original PDF is required. Please upload it again.')
       }
       onSaved()
     } catch (err) {
@@ -95,8 +105,7 @@ export function OrderEditorPage({
     }
   }
 
-  const title =
-    mode === 'edit' ? 'Edit order' : mode === 'review' ? 'Review extracted order' : 'Create order'
+  const title = mode === 'edit' ? 'Edit order' : 'Review extracted order'
 
   return (
     <AppShell

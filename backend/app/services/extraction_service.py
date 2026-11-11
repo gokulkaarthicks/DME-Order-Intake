@@ -2,13 +2,16 @@
 
 from __future__ import annotations
 
+import hashlib
 import logging
-from datetime import date, datetime
+from datetime import date, datetime, timedelta, timezone
 from typing import Any
 from uuid import UUID
 
+import jwt
 from pydantic import ValidationError
 
+from app.core.config import Settings
 from app.core.npi import is_valid_npi
 from app.db.models import User
 from app.integrations.deepseek import ExtractionProviderError
@@ -48,6 +51,7 @@ class OrderUploadResult:
         errors: dict[str, str],
         order_id: UUID | None = None,
         order: OrderPublic | None = None,
+        review_token: str | None = None,
     ) -> None:
         self.status = status
         self.saved = saved
@@ -55,6 +59,7 @@ class OrderUploadResult:
         self.errors = errors
         self.order_id = order_id
         self.order = order
+        self.review_token = review_token
 
 
 class ExtractionService:
@@ -67,11 +72,13 @@ class ExtractionService:
         extractor: OrderFieldExtractor,
         order_service: OrderService,
         max_upload_bytes: int,
+        settings: Settings,
     ) -> None:
         self._pdf_processor = pdf_processor
         self._extractor = extractor
         self._order_service = order_service
         self._max_upload_bytes = max_upload_bytes
+        self._settings = settings
 
     def process_upload(
         self,
@@ -80,6 +87,8 @@ class ExtractionService:
         file_bytes: bytes,
         filename: str | None,
         content_type: str | None,
+        corrections: OrderCreate | None = None,
+        review_token: str | None = None,
     ) -> OrderUploadResult:
         """Extract, validate, and optionally persist an order from an uploaded PDF."""
         self._validate_upload(file_bytes=file_bytes, filename=filename, content_type=content_type)
@@ -88,6 +97,21 @@ class ExtractionService:
             document = self._pdf_processor.process(file_bytes)
         except PdfProcessingError as exc:
             raise UploadRejectedError(str(exc)) from exc
+
+        if corrections is not None:
+            self._verify_review_token(review_token, user, file_bytes)
+            normalized = ExtractedOrderFields(
+                patient_first_name=corrections.patient_first_name,
+                patient_last_name=corrections.patient_last_name,
+                patient_dob=corrections.patient_dob.isoformat(),
+                provider_name=corrections.provider_name,
+                provider_npi=corrections.provider_npi,
+            )
+            order = self._order_service.create(user, corrections)
+            return OrderUploadResult(
+                status="created", saved=True, extracted=normalized, errors={},
+                order_id=order.id, order=OrderPublic.model_validate(order),
+            )
 
         try:
             extracted = self._extractor.extract(document)
@@ -106,6 +130,7 @@ class ExtractionService:
                 saved=False,
                 extracted=normalized,
                 errors=errors,
+                review_token=self._create_review_token(user, file_bytes),
             )
 
         order = self._order_service.create(user, order_create)
@@ -117,6 +142,29 @@ class ExtractionService:
             order_id=order.id,
             order=OrderPublic.model_validate(order),
         )
+
+    def _create_review_token(self, user: User, file_bytes: bytes) -> str:
+        if len(self._settings.jwt_secret_key) < 32:
+            raise ExtractionFailedError("Review is unavailable")
+        return jwt.encode({
+            "review_user": str(user.id),
+            "pdf_digest": hashlib.sha256(file_bytes).hexdigest(),
+            "purpose": "order_review",
+            "exp": datetime.now(timezone.utc) + timedelta(minutes=60),
+        }, self._settings.jwt_secret_key, algorithm=self._settings.jwt_algorithm)
+
+    def _verify_review_token(self, token: str | None, user: User, file_bytes: bytes) -> None:
+        try:
+            claims = jwt.decode(
+                token or "", self._settings.jwt_secret_key,
+                algorithms=[self._settings.jwt_algorithm],
+                options={"require": ["exp", "review_user", "pdf_digest", "purpose"]},
+            )
+        except jwt.InvalidTokenError as exc:
+            raise UploadRejectedError("Invalid or expired review. Upload the PDF again") from exc
+        if (claims["purpose"] != "order_review" or claims["review_user"] != str(user.id)
+                or claims["pdf_digest"] != hashlib.sha256(file_bytes).hexdigest()):
+            raise UploadRejectedError("Review does not match this user and PDF")
 
     def _validate_upload(
         self,

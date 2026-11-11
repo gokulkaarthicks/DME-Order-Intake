@@ -14,13 +14,6 @@ export async function getOrder(orderId: string): Promise<OrderPublic> {
   return apiRequest<OrderPublic>(`/api/orders/${orderId}`)
 }
 
-export async function createOrder(payload: OrderCreateRequest): Promise<OrderPublic> {
-  return apiRequest<OrderPublic>('/api/orders', {
-    method: 'POST',
-    json: payload,
-  })
-}
-
 export async function updateOrder(
   orderId: string,
   payload: OrderUpdateRequest,
@@ -37,9 +30,13 @@ export async function deleteOrder(orderId: string): Promise<void> {
   })
 }
 
-export async function uploadOrderPdf(file: File): Promise<OrderUploadResponse> {
+export async function uploadOrderPdf(file: File, corrections?: OrderCreateRequest, reviewToken?: string): Promise<OrderUploadResponse> {
   const formData = new FormData()
   formData.append('file', file)
+  if (corrections && reviewToken) {
+    formData.append('corrections', JSON.stringify(corrections))
+    formData.append('review_token', reviewToken)
+  }
   return apiRequest<OrderUploadResponse>('/api/orders/upload', {
     method: 'POST',
     body: formData,
