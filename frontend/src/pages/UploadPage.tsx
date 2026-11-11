@@ -2,13 +2,14 @@ import { useState, type FormEvent } from 'react'
 import { uploadOrderPdf } from '../api/orders'
 import { AppShell } from '../components/AppShell'
 import { StatusBanner } from '../components/StatusBanner'
-import type { OrderCreateRequest, OrderUploadResponse } from '../types/api'
+import type { ExtractedFields, OrderCreateRequest, OrderUploadResponse } from '../types/api'
 
 interface UploadPageProps {
   onBack: () => void
   onCreated: () => void
   onNeedsReview: (payload: {
     file: File
+    extracted: ExtractedFields
     reviewToken: string
     values: OrderCreateRequest
     fieldErrors: Record<string, string>
@@ -54,6 +55,7 @@ export function UploadPage({ onBack, onCreated, onNeedsReview }: UploadPageProps
       }
       onNeedsReview({
         file,
+        extracted: result.extracted,
         reviewToken: result.review_token,
         values: {
           patient_first_name: result.extracted.patient_first_name ?? '',
@@ -64,7 +66,7 @@ export function UploadPage({ onBack, onCreated, onNeedsReview }: UploadPageProps
         },
         fieldErrors: result.errors,
         notice:
-          'Extraction needs review. Correct the highlighted fields, then save. Extracted values were not changed automatically.',
+          'Extraction needs review. Save it for later or correct the highlighted fields now.',
       })
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Upload failed.')

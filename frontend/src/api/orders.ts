@@ -4,6 +4,8 @@ import type {
   OrderPublic,
   OrderUpdateRequest,
   OrderUploadResponse,
+  ExtractedFields,
+  PendingReview,
 } from '../types/api'
 
 export async function listOrders(): Promise<OrderPublic[]> {
@@ -41,4 +43,17 @@ export async function uploadOrderPdf(file: File, corrections?: OrderCreateReques
     method: 'POST',
     body: formData,
   })
+}
+
+
+export async function saveReview(extracted: ExtractedFields, reviewToken: string): Promise<PendingReview> {
+  return apiRequest<PendingReview>('/api/reviews', { method: 'POST', json: { extracted, review_token: reviewToken } })
+}
+
+export async function listReviews(): Promise<PendingReview[]> {
+  return apiRequest<PendingReview[]>('/api/reviews')
+}
+
+export async function resolveReview(id: string, payload: OrderCreateRequest): Promise<OrderPublic> {
+  return apiRequest<OrderPublic>(`/api/reviews/${id}/resolve`, { method: 'POST', json: payload })
 }

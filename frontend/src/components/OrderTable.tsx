@@ -25,6 +25,7 @@ export function OrderTable({ orders, onEdit, onDelete, busyOrderId }: OrderTable
       <table className="orders-table">
         <thead>
           <tr>
+            <th scope="col">Status</th>
             <th scope="col">Patient</th>
             <th scope="col">Date of birth</th>
             <th scope="col">Ordering provider</th>
@@ -36,6 +37,7 @@ export function OrderTable({ orders, onEdit, onDelete, busyOrderId }: OrderTable
         <tbody>
           {orders.map((order) => (
             <tr key={order.id}>
+              <td>Validated</td>
               <td>
                 {order.patient_first_name} {order.patient_last_name}
               </td>

@@ -5,7 +5,7 @@ import { LoginPage } from './pages/LoginPage'
 import { OrderEditorPage } from './pages/OrderEditorPage'
 import { RegisterPage } from './pages/RegisterPage'
 import { UploadPage } from './pages/UploadPage'
-import type { OrderCreateRequest } from './types/api'
+import type { ExtractedFields, OrderCreateRequest, PendingReview } from './types/api'
 
 type AppView =
   | { name: 'login' }
@@ -13,8 +13,10 @@ type AppView =
   | { name: 'dashboard' }
   | { name: 'upload' }
   | { name: 'edit'; orderId: string }
+  | { name: 'pending'; review: PendingReview }
   | {
       name: 'review'
+      extracted: ExtractedFields
       file: File
       reviewToken: string
       values: OrderCreateRequest
@@ -26,6 +28,7 @@ function AuthenticatedApp() {
   const { isAuthenticated, logout } = useAuth()
   const [view, setView] = useState<AppView>({ name: 'login' })
   const [refreshKey, setRefreshKey] = useState(0)
+  const [dashboardNotice, setDashboardNotice] = useState<string | null>(null)
 
   function goDashboard(refresh = false) {
     if (refresh) {
@@ -56,8 +59,8 @@ function AuthenticatedApp() {
       <UploadPage
         onBack={() => goDashboard()}
         onCreated={() => goDashboard(true)}
-        onNeedsReview={({ file, reviewToken, values, fieldErrors, notice }) =>
-          setView({ name: 'review', file, reviewToken, values, fieldErrors, notice })
+        onNeedsReview={({ file, extracted, reviewToken, values, fieldErrors, notice }) =>
+          setView({ name: 'review', file, extracted, reviewToken, values, fieldErrors, notice })
         }
       />
     )
@@ -80,6 +83,8 @@ function AuthenticatedApp() {
         mode="review"
         file={view.file}
         reviewToken={view.reviewToken}
+        extracted={view.extracted}
+        onReviewSaved={() => { setDashboardNotice('Saved for human review.'); goDashboard(true) }}
         initialValues={view.values}
         initialFieldErrors={view.fieldErrors}
         notice={view.notice}
@@ -89,14 +94,24 @@ function AuthenticatedApp() {
     )
   }
 
+  if (view.name === 'pending') {
+    const fields = view.review.extracted
+    return <OrderEditorPage mode="pending" reviewId={view.review.id}
+      initialValues={{ patient_first_name: fields.patient_first_name ?? '', patient_last_name: fields.patient_last_name ?? '',
+        patient_dob: fields.patient_dob ?? '', provider_name: fields.provider_name ?? '', provider_npi: fields.provider_npi ?? '' }}
+      initialFieldErrors={view.review.errors} onBack={() => goDashboard()} onSaved={() => goDashboard(true)} />
+  }
+
   return (
     <DashboardPage
       refreshKey={refreshKey}
+      notice={dashboardNotice}
+      onReview={(review) => { setDashboardNotice(null); setView({ name: 'pending', review }) }}
       onLogout={() => {
         logout()
         setView({ name: 'login' })
       }}
-      onUpload={() => setView({ name: 'upload' })}
+      onUpload={() => { setDashboardNotice(null); setView({ name: 'upload' }) }}
       onEdit={(orderId) => setView({ name: 'edit', orderId })}
     />
   )

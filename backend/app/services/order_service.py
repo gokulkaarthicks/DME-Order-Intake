@@ -4,15 +4,20 @@ from __future__ import annotations
 
 from uuid import UUID
 
+from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session
 
-from app.db.models import Order, User
+from app.db.models import Order, PendingReview, User
 from app.repositories.order_repository import OrderRepository
 from app.schemas.order import OrderCreate, OrderUpdate
 
 
 class OrderNotFoundError(Exception):
     """Raised when an order is missing or not owned by the authenticated user."""
+
+
+class ReviewAlreadyUsedError(Exception):
+    """Raised when an extraction proof has already been consumed."""
 
 
 class OrderService:
@@ -41,6 +46,25 @@ class OrderService:
 
         self._session.refresh(order)
         return order
+
+    def create_from_review(self, user: User, payload: OrderCreate, review_id: UUID) -> Order:
+        """Consume a review proof and create its order in one transaction."""
+        try:
+            result = self._session.execute(insert(PendingReview).values(
+                id=review_id, user_id=user.id, extracted={}, errors={}, status="resolved"
+            ).on_conflict_do_nothing(index_elements=["id"]).returning(PendingReview.id))
+            if result.scalar_one_or_none() is None:
+                raise ReviewAlreadyUsedError("Review already saved or resolved")
+            order = self._orders.create(user_id=user.id, **payload.model_dump())
+            receipt = self._session.get(PendingReview, review_id)
+            assert receipt is not None
+            receipt.order_id = order.id
+            self._session.commit()
+            self._session.refresh(order)
+            return order
+        except Exception:
+            self._session.rollback()
+            raise
 
     def list_for_user(self, user: User) -> list[Order]:
         """List orders owned by the authenticated user."""

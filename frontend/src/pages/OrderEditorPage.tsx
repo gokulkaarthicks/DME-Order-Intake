@@ -1,12 +1,15 @@
 import { useEffect, useState } from 'react'
-import { getOrder, updateOrder, uploadOrderPdf } from '../api/orders'
+import { getOrder, updateOrder, uploadOrderPdf, saveReview, resolveReview } from '../api/orders'
 import { AppShell } from '../components/AppShell'
 import { OrderForm } from '../components/OrderForm'
 import { StatusBanner } from '../components/StatusBanner'
-import { ApiError, EMPTY_ORDER_FORM, type OrderCreateRequest } from '../types/api'
+import { ApiError, EMPTY_ORDER_FORM, type ExtractedFields, type OrderCreateRequest } from '../types/api'
 
 interface OrderEditorPageProps {
-  mode: 'edit' | 'review'
+  mode: 'edit' | 'review' | 'pending'
+  reviewId?: string
+  extracted?: ExtractedFields
+  onReviewSaved?: () => void
   file?: File
   reviewToken?: string
   orderId?: string
@@ -20,6 +23,9 @@ interface OrderEditorPageProps {
 export function OrderEditorPage({
   mode,
   orderId,
+  reviewId,
+  extracted,
+  onReviewSaved,
   file,
   reviewToken,
   initialValues,
@@ -82,6 +88,8 @@ export function OrderEditorPage({
     try {
       if (mode === 'edit' && orderId) {
         await updateOrder(orderId, nextValues)
+      } else if (mode === 'pending' && reviewId) {
+        await resolveReview(reviewId, nextValues)
       } else if (mode === 'review' && file && reviewToken) {
         const result = await uploadOrderPdf(file, nextValues, reviewToken)
         if (!result.saved) {
@@ -105,6 +113,20 @@ export function OrderEditorPage({
     }
   }
 
+  async function handleSaveReview() {
+    if (!extracted || !reviewToken || !onReviewSaved || busy) return
+    setBusy(true)
+    setError(null)
+    try {
+      await saveReview(extracted, reviewToken)
+      onReviewSaved()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unable to save for review.')
+    } finally {
+      setBusy(false)
+    }
+  }
+
   const title = mode === 'edit' ? 'Edit order' : 'Review extracted order'
 
   return (
@@ -120,6 +142,11 @@ export function OrderEditorPage({
         {notice ? <StatusBanner tone="info">{notice}</StatusBanner> : null}
         {loading ? <StatusBanner>Loading order…</StatusBanner> : null}
         {error ? <StatusBanner tone="error">{error}</StatusBanner> : null}
+        {mode === 'review' ? (
+          <button type="button" className="button button-secondary" onClick={handleSaveReview} disabled={busy}>
+            {busy ? 'Saving…' : 'Save for Human Review'}
+          </button>
+        ) : null}
         {!loading ? (
           <OrderForm
             key={`${mode}-${orderId ?? 'new'}-${values.provider_npi}-${values.patient_dob}`}

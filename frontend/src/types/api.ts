@@ -49,6 +49,15 @@ export interface ExtractedFields {
   provider_npi: string | null
 }
 
+export interface PendingReview {
+  id: string
+  extracted: ExtractedFields
+  errors: Record<string, string>
+  status: "pending" | "resolved"
+  created_at: string
+  updated_at: string
+}
+
 export interface OrderUploadResponse {
   status: 'created' | 'needs_review'
   saved: boolean

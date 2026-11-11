@@ -35,6 +35,6 @@ docker compose down
 - If API requests fail in the browser, check backend health at [http://localhost:8001/health](http://localhost:8001/health) and proxy health at [http://localhost:5173/health](http://localhost:5173/health). Keep `VITE_API_BASE_URL` empty for same-origin requests.
 - Real PDF extraction additionally requires a working DeepSeek API key. No credentials belong in frontend variables or images.
 
-Orders are created by PDF upload. If extraction needs review, correct the fields and resubmit with the original PDF. Existing orders can still be edited or deleted.
+Orders are created by PDF upload. If extraction needs review, save it for human review and return later, or correct the fields immediately and resubmit with the original PDF. Saved reviews do not retain the PDF. Existing orders can still be edited or deleted.
 
 See [backend/README.md](backend/README.md) and [frontend/README.md](frontend/README.md) for application and test details.

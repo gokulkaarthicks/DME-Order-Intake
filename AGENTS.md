@@ -89,7 +89,7 @@ Credentials and hosting access remain external inputs. Do not invent API keys, d
 - Invalid extraction responses return extracted nullable values and field-specific errors, explicitly indicating `saved: false`. Do not create placeholder or partial orders.
 - The frontend offers editable fields after unsuccessful extraction; corrected data and the original PDF are resubmitted to the upload endpoint with a user-bound review token and go through the same server-side validation.
 - All create/update operations enforce the same field rules. Do not silently ignore invalid data.
-- Avoid unnecessary new fields, statuses, or tables. No permanent storage of original PDFs.
+- Pending reviews are stored separately from validated orders, with extracted fields, server-computed errors, owner, timestamps, and resolution status. No permanent storage of original PDFs.
 
 ### Extraction and validation
 
@@ -142,7 +142,7 @@ Automate critical behavior without paid-model calls:
 - Registration, login, invalid credentials, and rejection of unauthenticated order requests.
 - User A can CRUD their orders; user B cannot read, update, or delete A's orders (including guessed IDs).
 - Uploaded valid PDF -> mocked extraction -> validated persisted order -> retrievable from database.
-- Missing/ambiguous values -> `null`/clear errors -> **no database write**.
+- Missing/ambiguous values -> `null`/clear errors -> no validated order; the user may explicitly save a separate pending review.
 - Invalid DOB and bad NPI -> rejected before persistence, including corrected uploads and updates.
 - Non-PDF, oversized, malformed, or empty uploads -> explicit rejection.
 - Model timeout or malformed response -> safe failure without partial data writes.
@@ -238,6 +238,8 @@ The only required healthcare data is what the assessment asks to extract. Any ex
 **Confirmed assessment mandates:** Section 2 (from the assessment PDF).
 
 **Confirmed user decisions (2026-11-11):**
+
+- 2026-11-11 | Persist human review items separately from orders | User requested deferred correction | Approved by user | Signed PDF extraction results can be saved for later review without storing the PDF; resolution validates fields and atomically creates an order and resolves the review. Existing immediate PDF correction remains available.
 
 - 2026-11-11 | PDF upload is the only order creation path | User requested removal of manual creation | Approved by user | Corrections require the original PDF and a user-bound review token; order read, update, and delete remain available
 

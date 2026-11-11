@@ -54,7 +54,7 @@ def test_engine() -> Generator[Engine, None, None]:
 def clean_tables(test_engine: Engine) -> Generator[None, None, None]:
     yield
     with test_engine.begin() as connection:
-        connection.execute(text("TRUNCATE TABLE orders, users RESTART IDENTITY CASCADE"))
+        connection.execute(text("TRUNCATE TABLE pending_reviews, orders, users RESTART IDENTITY CASCADE"))
 
 
 @pytest.fixture()

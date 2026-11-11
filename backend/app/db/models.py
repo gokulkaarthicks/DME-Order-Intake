@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import date, datetime
 from uuid import UUID, uuid4
 
-from sqlalchemy import Date, DateTime, ForeignKey, Index, String, Uuid, func
+from sqlalchemy import JSON, CheckConstraint, Date, DateTime, ForeignKey, Index, String, Uuid, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
@@ -59,3 +59,22 @@ class Order(Base):
     )
 
     user: Mapped[User] = relationship(back_populates="orders")
+
+
+class PendingReview(Base):
+    """Unvalidated extraction retained separately from orders."""
+
+    __tablename__ = "pending_reviews"
+    __table_args__ = (
+        CheckConstraint("status IN ('pending', 'resolved')", name="valid_status"),
+        Index("ix_pending_reviews_user_status", "user_id", "status"),
+    )
+
+    id: Mapped[UUID] = mapped_column(Uuid, primary_key=True)
+    user_id: Mapped[UUID] = mapped_column(Uuid, ForeignKey("users.id", ondelete="RESTRICT"), nullable=False)
+    extracted: Mapped[dict] = mapped_column(JSON, nullable=False)
+    errors: Mapped[dict] = mapped_column(JSON, nullable=False)
+    status: Mapped[str] = mapped_column(String(16), nullable=False, server_default="pending")
+    order_id: Mapped[UUID | None] = mapped_column(Uuid, ForeignKey("orders.id", ondelete="SET NULL"))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)

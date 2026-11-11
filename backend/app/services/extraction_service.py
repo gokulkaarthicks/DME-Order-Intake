@@ -4,9 +4,11 @@ from __future__ import annotations
 
 import hashlib
 import logging
+import json
+from dataclasses import asdict
 from datetime import date, datetime, timedelta, timezone
 from typing import Any
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import jwt
 from pydantic import ValidationError
@@ -18,7 +20,7 @@ from app.integrations.deepseek import ExtractionProviderError
 from app.integrations.extraction import ExtractedOrderFields, OrderFieldExtractor
 from app.integrations.pdf_processor import PDFProcessor, PdfProcessingError
 from app.schemas.order import OrderCreate, OrderPublic
-from app.services.order_service import OrderService
+from app.services.order_service import OrderService, ReviewAlreadyUsedError
 
 logger = logging.getLogger(__name__)
 
@@ -99,7 +101,7 @@ class ExtractionService:
             raise UploadRejectedError(str(exc)) from exc
 
         if corrections is not None:
-            self._verify_review_token(review_token, user, file_bytes)
+            review_id = self._verify_review_token(review_token, user, file_bytes)
             normalized = ExtractedOrderFields(
                 patient_first_name=corrections.patient_first_name,
                 patient_last_name=corrections.patient_last_name,
@@ -107,7 +109,10 @@ class ExtractionService:
                 provider_name=corrections.provider_name,
                 provider_npi=corrections.provider_npi,
             )
-            order = self._order_service.create(user, corrections)
+            try:
+                order = self._order_service.create_from_review(user, corrections, review_id)
+            except ReviewAlreadyUsedError as exc:
+                raise UploadRejectedError("Review already saved or resolved") from exc
             return OrderUploadResult(
                 status="created", saved=True, extracted=normalized, errors={},
                 order_id=order.id, order=OrderPublic.model_validate(order),
@@ -130,7 +135,7 @@ class ExtractionService:
                 saved=False,
                 extracted=normalized,
                 errors=errors,
-                review_token=self._create_review_token(user, file_bytes),
+                review_token=self._create_review_token(user, file_bytes, normalized),
             )
 
         order = self._order_service.create(user, order_create)
@@ -143,28 +148,34 @@ class ExtractionService:
             order=OrderPublic.model_validate(order),
         )
 
-    def _create_review_token(self, user: User, file_bytes: bytes) -> str:
+    def _create_review_token(self, user: User, file_bytes: bytes, extracted: ExtractedOrderFields) -> str:
         if len(self._settings.jwt_secret_key) < 32:
             raise ExtractionFailedError("Review is unavailable")
         return jwt.encode({
             "review_user": str(user.id),
             "pdf_digest": hashlib.sha256(file_bytes).hexdigest(),
             "purpose": "order_review",
+            "review_id": str(uuid4()),
+            "fields_digest": extracted_digest(asdict(extracted)),
             "exp": datetime.now(timezone.utc) + timedelta(minutes=60),
         }, self._settings.jwt_secret_key, algorithm=self._settings.jwt_algorithm)
 
-    def _verify_review_token(self, token: str | None, user: User, file_bytes: bytes) -> None:
+    def _verify_review_token(self, token: str | None, user: User, file_bytes: bytes) -> UUID:
         try:
             claims = jwt.decode(
                 token or "", self._settings.jwt_secret_key,
                 algorithms=[self._settings.jwt_algorithm],
-                options={"require": ["exp", "review_user", "pdf_digest", "purpose"]},
+                options={"require": ["exp", "review_user", "pdf_digest", "purpose", "review_id"]},
             )
         except jwt.InvalidTokenError as exc:
             raise UploadRejectedError("Invalid or expired review. Upload the PDF again") from exc
         if (claims["purpose"] != "order_review" or claims["review_user"] != str(user.id)
                 or claims["pdf_digest"] != hashlib.sha256(file_bytes).hexdigest()):
             raise UploadRejectedError("Review does not match this user and PDF")
+        try:
+            return UUID(claims["review_id"])
+        except (ValueError, TypeError, AttributeError) as exc:
+            raise UploadRejectedError("Invalid review") from exc
 
     def _validate_upload(
         self,
@@ -280,3 +291,9 @@ def _validation_error_map(exc: ValidationError) -> dict[str, str]:
         field_name = str(location[-1]) if location else "order"
         mapped[field_name] = error.get("msg", "invalid value")
     return mapped
+
+
+def extracted_digest(fields: dict[str, Any]) -> str:
+    """Bind a review proof to exactly the extracted values returned by the server."""
+    data = json.dumps(fields, sort_keys=True, separators=(",", ":"), ensure_ascii=True)
+    return hashlib.sha256(data.encode()).hexdigest()

@@ -297,9 +297,11 @@ def test_corrections_require_original_pdf_and_review_owner(client: TestClient, v
         assert response.status_code == 422
         assert _count_orders() == 0
     saved = client.post("/api/orders/upload", headers=owner, data=data, files=files)
-    assert saved.status_code == 200 and saved.json()["saved"] is True
+    assert saved.status_code == 200 and saved.json()["saved"] is True, saved.text
     assert saved.json()["order"]["patient_first_name"] == valid_order_payload["patient_first_name"]
     assert fake.calls == 1
+    assert _count_orders() == 1
+    assert client.post("/api/orders/upload", headers=owner, data=data, files=files).status_code == 400
     assert _count_orders() == 1
     assert client.get("/api/orders", headers=other).json() == []
     client.app.dependency_overrides.pop(get_order_field_extractor, None)
