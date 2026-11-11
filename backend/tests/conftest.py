@@ -90,15 +90,15 @@ def valid_order_payload() -> dict[str, str]:
     }
 
 
-def register_and_login(client: TestClient, email: str, password: str = "SecurePass123") -> str:
+def register_and_login(client: TestClient, username: str, password: str = "SecurePass123") -> str:
     register = client.post(
         "/api/auth/register",
-        json={"email": email, "password": password},
+        json={"username": username, "password": password},
     )
     assert register.status_code == 201, register.text
     login = client.post(
         "/api/auth/login",
-        json={"email": email, "password": password},
+        json={"username": username, "password": password},
     )
     assert login.status_code == 200, login.text
     return login.json()["access_token"]

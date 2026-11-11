@@ -10,7 +10,7 @@ interface LoginPageProps {
 
 export function LoginPage({ onRegister, onSuccess }: LoginPageProps) {
   const { login } = useAuth()
-  const [email, setEmail] = useState('')
+  const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
@@ -18,9 +18,13 @@ export function LoginPage({ onRegister, onSuccess }: LoginPageProps) {
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setError(null)
+    if (!/^[a-z0-9_]{3,32}$/.test(username.trim().toLowerCase())) {
+      setError('Username must be 3 to 32 letters, numbers, or underscores.')
+      return
+    }
     setBusy(true)
     try {
-      await login({ email: email.trim(), password })
+      await login({ username: username.trim().toLowerCase(), password })
       onSuccess()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to sign in.')
@@ -36,12 +40,12 @@ export function LoginPage({ onRegister, onSuccess }: LoginPageProps) {
         {error ? <StatusBanner tone="error">{error}</StatusBanner> : null}
         <form className="stack-form" onSubmit={handleSubmit}>
           <label className="field">
-            <span>Email</span>
+            <span>Username</span>
             <input
-              type="email"
+              type="text"
               autoComplete="username"
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
+              value={username}
+              onChange={(event) => setUsername(event.target.value)}
               required
               disabled={busy}
             />

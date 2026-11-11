@@ -17,7 +17,7 @@ def test_create_list_get_update_delete_order(
     client: TestClient,
     valid_order_payload: dict[str, str],
 ) -> None:
-    token = register_and_login(client, "owner@example.com")
+    token = register_and_login(client, "owner")
     headers = auth_header(token)
 
     create_response = client.post("/api/orders", json=valid_order_payload, headers=headers)
@@ -66,7 +66,7 @@ def test_invalid_dob_and_npi_rejected(
     client: TestClient,
     valid_order_payload: dict[str, str],
 ) -> None:
-    token = register_and_login(client, "validator@example.com")
+    token = register_and_login(client, "validator")
     headers = auth_header(token)
 
     future_dob = dict(valid_order_payload)
@@ -86,7 +86,7 @@ def test_missing_and_blank_required_fields(
     client: TestClient,
     valid_order_payload: dict[str, str],
 ) -> None:
-    token = register_and_login(client, "required@example.com")
+    token = register_and_login(client, "required")
     headers = auth_header(token)
 
     missing = dict(valid_order_payload)
@@ -102,7 +102,7 @@ def test_partial_update_rejects_null_and_blank(
     client: TestClient,
     valid_order_payload: dict[str, str],
 ) -> None:
-    token = register_and_login(client, "patchuser@example.com")
+    token = register_and_login(client, "patchuser")
     headers = auth_header(token)
     created = client.post("/api/orders", json=valid_order_payload, headers=headers)
     order_id = created.json()["id"]
@@ -143,8 +143,8 @@ def test_cross_user_isolation(
     client: TestClient,
     valid_order_payload: dict[str, str],
 ) -> None:
-    token_a = register_and_login(client, "user.a@example.com")
-    token_b = register_and_login(client, "user.b@example.com")
+    token_a = register_and_login(client, "user_a")
+    token_b = register_and_login(client, "user_b")
     headers_a = auth_header(token_a)
     headers_b = auth_header(token_b)
 
@@ -174,7 +174,7 @@ def test_validation_errors_do_not_echo_input_payload(
     client: TestClient,
     valid_order_payload: dict[str, str],
 ) -> None:
-    token = register_and_login(client, "novalinput@example.com")
+    token = register_and_login(client, "novalinput")
     headers = auth_header(token)
     bad = dict(valid_order_payload)
     bad["provider_npi"] = "1234567890"
@@ -190,7 +190,7 @@ def test_user_specific_listing_order(
     client: TestClient,
     valid_order_payload: dict[str, str],
 ) -> None:
-    token = register_and_login(client, "lister@example.com")
+    token = register_and_login(client, "lister")
     headers = auth_header(token)
 
     first = dict(valid_order_payload)

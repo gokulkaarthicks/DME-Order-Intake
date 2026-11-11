@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.db.models import User
@@ -20,14 +20,14 @@ class UserRepository:
         """Return a user by primary key, or None when not found."""
         return self._session.get(User, user_id)
 
-    def get_by_email(self, email: str) -> User | None:
-        """Return a user by normalized email, or None when not found."""
-        statement = select(User).where(User.email == email)
+    def get_by_username(self, username: str) -> User | None:
+        """Return a user by normalized username, or None when not found."""
+        statement = select(User).where(func.lower(User.username) == username.strip().lower())
         return self._session.scalar(statement)
 
-    def create(self, *, email: str, password_hash: str) -> User:
+    def create(self, *, username: str, password_hash: str) -> User:
         """Insert a new user and flush so database defaults and constraints apply."""
-        user = User(email=email, password_hash=password_hash)
+        user = User(username=username, password_hash=password_hash)
         self._session.add(user)
         self._session.flush()
         return user

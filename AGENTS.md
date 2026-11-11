@@ -53,7 +53,7 @@ These decisions implement the assessment requirements. They are **not** themselv
 | Local development | PostgreSQL runs in Docker; FastAPI and React run locally against that database | Simple local loop without containerizing the whole app during development |
 | PDF handling | PyMuPDF page rendering into images for multimodal extraction | Works with scanned and image-only pages; no dedicated OCR service |
 | AI extraction | Official DeepSeek API at `https://api.deepseek.com` using model `deepseek-flash` (DeepSeek V4.1 Flash; env `DEEPSEEK_API_KEY`) behind one replaceable extraction interface/adapter | Structured multimodal extraction; provider details stay inside the adapter |
-| Authentication | Hashed passwords + short-lived signed bearer tokens for **DME employees** | Minimal secure stateless auth matching assessment ownership rules |
+| Authentication | Username and hashed passwords + short-lived signed bearer tokens for **DME employees** | Minimal secure stateless auth matching assessment ownership rules |
 | API/UI hosting | Single deployable application; React built assets served by the backend | One public URL; no CORS complexity for the MVP |
 | Automated tests | Pytest + mocked extraction provider | Deterministic critical-path coverage without paid-model calls |
 
@@ -75,6 +75,7 @@ Credentials and hosting access remain external inputs. Do not invent API keys, d
 
 - Provide register, login, and current-user endpoints; logout can clear client-held authentication state.
 - Users are **DME employees**. There is no doctor portal in scope.
+- Authenticate with username and password. Email authentication, email verification, two-step authentication, and password recovery are excluded from the current MVP.
 - Hash and verify passwords using a maintained password-hashing library (prefer Argon2id).
 - Authenticate every order endpoint. Derive `user_id` exclusively from verified credentials, never a client-supplied ownership field.
 - Scope every single-order database query or mutation by **both** `order_id` and `current_user.id`; use non-revealing not-found responses for inaccessible records.
@@ -118,7 +119,7 @@ Credentials and hosting access remain external inputs. Do not invent API keys, d
 - Apply SOLID, DRY, KISS, and YAGNI **pragmatically**. Prefer composition over inheritance. No abstract base classes unless more than one implementation or test substitution justifies one.
 - Use a repository abstraction only where it materially clarifies persistence or testability. Use a strategy/protocol for the extraction provider (DeepSeek API adapter now; mock in tests; optional future recovery adapter later). **Do not create factories or generic frameworks without a concrete use case.**
 - Persist with migrations and database constraints. Use transactions for writes; rollback on failures. Avoid duplicate save paths and unvalidated direct writes.
-- Include an index supporting order ownership queries and a unique email constraint.
+- Include an index supporting order ownership queries and a case-insensitive unique username index.
 - Never silently catch and discard errors. Surface actionable client errors and safe server logs.
 - Keep the app runnable after each completed vertical slice. No placeholder endpoints, `TODO`-only behavior, mocked production results, or hard-coded sample data in production code.
 - Avoid premature performance work. Only optimize a measured bottleneck or assessment-critical reliability issue.
@@ -237,6 +238,8 @@ The only required healthcare data is what the assessment asks to extract. Any ex
 **Confirmed assessment mandates:** Section 2 (from the assessment PDF).
 
 **Confirmed user decisions (2026-11-11):**
+
+- 2026-11-11 | Username/password authentication replaces email/password | User-directed authentication refactor | Approved by user | Migrate existing users and update auth contracts, UI, and tests; email authentication, email verification, two-step authentication, and password recovery remain out of scope
 
 - 2026-11-11 | Stack: FastAPI + React/TypeScript/Vite + PostgreSQL | Aligns with assessment and user frontend choice | Approved by user | Defines local and deploy implementation path
 - 2026-11-11 | Local Postgres in Docker; FastAPI and React run locally | Fast local development without full-stack containerization | Approved by user | Affects README and local setup; production still needs a public host and managed/hosted Postgres

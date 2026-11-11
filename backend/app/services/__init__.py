@@ -3,7 +3,7 @@
 from app.services.auth_service import (
     AuthError,
     AuthService,
-    DuplicateEmailError,
+    DuplicateUsernameError,
     InvalidCredentialsError,
 )
 from app.services.extraction_service import (
@@ -16,7 +16,7 @@ from app.services.order_service import OrderNotFoundError, OrderService
 __all__ = [
     "AuthError",
     "AuthService",
-    "DuplicateEmailError",
+    "DuplicateUsernameError",
     "ExtractionFailedError",
     "ExtractionService",
     "InvalidCredentialsError",

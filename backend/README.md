@@ -108,7 +108,8 @@ DeepSeek calls are mocked in automated tests. Live model verification requires `
 
 ## Notes
 
-- Auth endpoints: `POST /api/auth/register` and `POST /api/auth/login`.
+- Auth endpoints: `POST /api/auth/register` and `POST /api/auth/login` accept JSON such as `{"username":"employee_1","password":"your-password"}`. Usernames are trimmed, lowercased, 3 to 32 ASCII letters, digits, or underscores, and unique case-insensitively.
+- Existing accounts are migrated from email prefixes. Unsupported characters become underscores, short names are padded, and collisions receive numeric suffixes in user ID order. Ask an administrator for the assigned username if needed. Passwords and orders are preserved. The original email addresses are removed, so this migration cannot be downgraded without restoring a backup.
 - Order CRUD endpoints: `POST/GET/PATCH/DELETE /api/orders` (JWT required; ownership enforced).
 - PDF upload: `POST /api/orders/upload` extracts five fields via DeepSeek (`deepseek-flash`) and persists only when validation passes.
 - Upload responses use `status=created` with `saved=true`, or `status=needs_review` with `saved=false` plus field errors.

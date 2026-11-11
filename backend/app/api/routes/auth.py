@@ -11,7 +11,7 @@ from app.schemas.auth import (
     UserPublic,
     UserRegisterRequest,
 )
-from app.services.auth_service import DuplicateEmailError, InvalidCredentialsError
+from app.services.auth_service import DuplicateUsernameError, InvalidCredentialsError
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
@@ -28,10 +28,10 @@ def register_user(
     """Register a new DME employee account."""
     try:
         user = auth_service.register(payload)
-    except DuplicateEmailError as exc:
+    except DuplicateUsernameError as exc:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail="Email already registered",
+            detail="Username already registered",
         ) from exc
 
     return UserPublic.model_validate(user)
@@ -48,7 +48,7 @@ def login_user(
     except InvalidCredentialsError as exc:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid email or password",
+            detail="Invalid username or password",
             headers={"WWW-Authenticate": "Bearer"},
         ) from exc
 

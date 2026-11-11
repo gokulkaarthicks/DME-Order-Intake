@@ -56,7 +56,7 @@ def test_successful_extraction_persists_order(
     upload_client: tuple[TestClient, FakeExtractor],
 ) -> None:
     client, fake = upload_client
-    token = register_and_login(client, "upload.success@example.com")
+    token = register_and_login(client, "upload_success")
     pdf_bytes = build_text_pdf(SAMPLE_ORDER_LINES)
 
     response = client.post(
@@ -79,7 +79,7 @@ def test_scanned_document_extraction(
     upload_client: tuple[TestClient, FakeExtractor],
 ) -> None:
     client, _fake = upload_client
-    token = register_and_login(client, "upload.scanned@example.com")
+    token = register_and_login(client, "upload_scanned")
     pdf_bytes = build_scanned_pdf(SAMPLE_ORDER_LINES)
 
     response = client.post(
@@ -96,7 +96,7 @@ def test_multipage_document_extraction(
     upload_client: tuple[TestClient, FakeExtractor],
 ) -> None:
     client, fake = upload_client
-    token = register_and_login(client, "upload.multipage@example.com")
+    token = register_and_login(client, "upload_multipage")
     pdf_bytes = build_multipage_pdf()
 
     response = client.post(
@@ -122,7 +122,7 @@ def test_missing_fields_needs_review_without_persistence(
         )
     )
     client.app.dependency_overrides[get_order_field_extractor] = lambda: fake
-    token = register_and_login(client, "upload.missing@example.com")
+    token = register_and_login(client, "upload_missing")
 
     response = client.post(
         "/api/orders/upload",
@@ -151,7 +151,7 @@ def test_invalid_npi_needs_review_without_persistence(client: TestClient) -> Non
         )
     )
     client.app.dependency_overrides[get_order_field_extractor] = lambda: fake
-    token = register_and_login(client, "upload.badnpi@example.com")
+    token = register_and_login(client, "upload_badnpi")
 
     response = client.post(
         "/api/orders/upload",
@@ -178,7 +178,7 @@ def test_invalid_dob_needs_review_without_persistence(client: TestClient) -> Non
         )
     )
     client.app.dependency_overrides[get_order_field_extractor] = lambda: fake
-    token = register_and_login(client, "upload.baddob@example.com")
+    token = register_and_login(client, "upload_baddob")
 
     response = client.post(
         "/api/orders/upload",
@@ -196,7 +196,7 @@ def test_invalid_dob_needs_review_without_persistence(client: TestClient) -> Non
 def test_malformed_model_output_returns_bad_gateway(client: TestClient) -> None:
     fake = FakeExtractor(ExtractionProviderError("malformed"))
     client.app.dependency_overrides[get_order_field_extractor] = lambda: fake
-    token = register_and_login(client, "upload.malformed@example.com")
+    token = register_and_login(client, "upload_malformed")
 
     response = client.post(
         "/api/orders/upload",
@@ -221,7 +221,7 @@ def test_non_pdf_upload_rejected(
     upload_client: tuple[TestClient, FakeExtractor],
 ) -> None:
     client, fake = upload_client
-    token = register_and_login(client, "upload.nonpdf@example.com")
+    token = register_and_login(client, "upload_nonpdf")
     response = client.post(
         "/api/orders/upload",
         headers=auth_header(token),
@@ -236,7 +236,7 @@ def test_oversized_pdf_rejected_without_extraction(
     upload_client: tuple[TestClient, FakeExtractor],
 ) -> None:
     client, fake = upload_client
-    token = register_and_login(client, "upload.oversize@example.com")
+    token = register_and_login(client, "upload_oversize")
     oversized = b"%PDF-1.4\n" + (b"0" * (11 * 1024 * 1024))
     response = client.post(
         "/api/orders/upload",
@@ -251,7 +251,7 @@ def test_oversized_pdf_rejected_without_extraction(
 def test_upstream_api_failure_returns_bad_gateway(client: TestClient) -> None:
     fake = FakeExtractor(ExtractionProviderError("upstream down"))
     client.app.dependency_overrides[get_order_field_extractor] = lambda: fake
-    token = register_and_login(client, "upload.upstream@example.com")
+    token = register_and_login(client, "upload_upstream")
 
     response = client.post(
         "/api/orders/upload",

@@ -6,25 +6,33 @@ from datetime import datetime
 from typing import Annotated
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field, StringConstraints, field_validator
+from pydantic import BaseModel, BeforeValidator, ConfigDict, Field, StringConstraints
 
-NormalizedEmail = Annotated[
-    EmailStr,
-    StringConstraints(strip_whitespace=True, to_lower=True, max_length=320),
+
+def normalize_username(value: object) -> object:
+    if isinstance(value, str):
+        return value.strip().lower()
+    return value
+
+
+NormalizedUsername = Annotated[
+    str,
+    BeforeValidator(normalize_username),
+    StringConstraints(min_length=3, max_length=32, pattern=r"^[a-z0-9_]+$"),
 ]
 
 
 class UserRegisterRequest(BaseModel):
     """Payload for DME employee registration."""
 
-    email: NormalizedEmail
+    username: NormalizedUsername
     password: str = Field(min_length=8, max_length=128)
 
 
 class UserLoginRequest(BaseModel):
     """Payload for DME employee login."""
 
-    email: NormalizedEmail
+    username: NormalizedUsername
     password: str = Field(min_length=1, max_length=128)
 
 
@@ -41,12 +49,5 @@ class UserPublic(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: UUID
-    email: EmailStr
+    username: str
     created_at: datetime
-
-    @field_validator("email", mode="before")
-    @classmethod
-    def normalize_email(cls, value: object) -> object:
-        if isinstance(value, str):
-            return value.strip().lower()
-        return value

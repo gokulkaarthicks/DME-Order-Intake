@@ -10,7 +10,7 @@ interface RegisterPageProps {
 
 export function RegisterPage({ onLogin, onSuccess }: RegisterPageProps) {
   const { register } = useAuth()
-  const [email, setEmail] = useState('')
+  const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [message, setMessage] = useState<string | null>(null)
@@ -24,9 +24,13 @@ export function RegisterPage({ onLogin, onSuccess }: RegisterPageProps) {
       setError('Password must be at least 8 characters.')
       return
     }
+    if (!/^[a-z0-9_]{3,32}$/.test(username.trim().toLowerCase())) {
+      setError('Username must be 3 to 32 letters, numbers, or underscores.')
+      return
+    }
     setBusy(true)
     try {
-      await register({ email: email.trim(), password })
+      await register({ username: username.trim().toLowerCase(), password })
       setMessage('Account created. You can sign in now.')
       onSuccess()
     } catch (err) {
@@ -44,12 +48,12 @@ export function RegisterPage({ onLogin, onSuccess }: RegisterPageProps) {
         {message ? <StatusBanner tone="success">{message}</StatusBanner> : null}
         <form className="stack-form" onSubmit={handleSubmit}>
           <label className="field">
-            <span>Email</span>
+            <span>Username</span>
             <input
-              type="email"
+              type="text"
               autoComplete="username"
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
+              value={username}
+              onChange={(event) => setUsername(event.target.value)}
               required
               disabled={busy}
             />

@@ -1,6 +1,6 @@
 export interface UserPublic {
   id: string
-  email: string
+  username: string
   created_at: string
 }
 
@@ -10,12 +10,12 @@ export interface AccessTokenResponse {
 }
 
 export interface RegisterRequest {
-  email: string
+  username: string
   password: string
 }
 
 export interface LoginRequest {
-  email: string
+  username: string
   password: string
 }
 

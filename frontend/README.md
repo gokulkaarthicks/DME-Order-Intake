@@ -1,6 +1,6 @@
 # DME Order Intake Frontend
 
-React + TypeScript + Vite UI for DME employee order intake.
+React + TypeScript + Vite UI for DME employee order intake. Register and sign in with a username and password.
 
 ## Setup
 

@@ -20,7 +20,7 @@ def _deepseek_configured() -> bool:
     reason="DEEPSEEK_API_KEY is not configured; live model verification remains pending",
 )
 def test_live_deepseek_scanned_pdf_extraction(client: TestClient) -> None:
-    token = register_and_login(client, "upload.live@example.com")
+    token = register_and_login(client, "upload_live")
     pdf_bytes = build_scanned_pdf(SAMPLE_ORDER_LINES)
 
     response = client.post(
