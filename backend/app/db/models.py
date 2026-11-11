@@ -1,0 +1,60 @@
+"""ORM models for persistence. Keep API schemas and business rules elsewhere."""
+
+from __future__ import annotations
+
+from datetime import date, datetime
+from uuid import UUID, uuid4
+
+from sqlalchemy import Date, DateTime, ForeignKey, String, Uuid, func
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+
+from app.db.base import Base
+
+
+class User(Base):
+    """DME employee account persisted for authentication and order ownership."""
+
+    __tablename__ = "users"
+
+    id: Mapped[UUID] = mapped_column(Uuid, primary_key=True, default=uuid4)
+    email: Mapped[str] = mapped_column(String(320), unique=True, nullable=False)
+    password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False,
+    )
+
+    orders: Mapped[list["Order"]] = relationship(back_populates="user")
+
+
+class Order(Base):
+    """Durable medical equipment order owned by a single DME employee."""
+
+    __tablename__ = "orders"
+
+    id: Mapped[UUID] = mapped_column(Uuid, primary_key=True, default=uuid4)
+    user_id: Mapped[UUID] = mapped_column(
+        Uuid,
+        ForeignKey("users.id", ondelete="RESTRICT"),
+        nullable=False,
+        index=True,
+    )
+    patient_first_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    patient_last_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    patient_dob: Mapped[date] = mapped_column(Date, nullable=False)
+    provider_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    provider_npi: Mapped[str] = mapped_column(String(10), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False,
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=False,
+    )
+
+    user: Mapped[User] = relationship(back_populates="orders")

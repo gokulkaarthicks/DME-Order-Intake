@@ -25,7 +25,7 @@ class Settings(BaseSettings):
     port: int = Field(default=8000, description="Uvicorn bind port")
 
     database_url: str = Field(
-        default="postgresql+psycopg://dme:dme@127.0.0.1:5432/dme_order_intake",
+        default="postgresql+psycopg://dme:dme@127.0.0.1:5434/dme_order_intake",
         description="SQLAlchemy database URL (PostgreSQL + Psycopg 3)",
     )
     db_pool_size: int = Field(default=5, description="SQLAlchemy connection pool size")

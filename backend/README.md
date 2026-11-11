@@ -16,9 +16,10 @@ app/
   core/          # Settings, logging, error handlers
   schemas/       # Pydantic request/response models
   services/      # Business logic (future)
-  db/            # Database engine and session helpers
+  db/            # Engine, sessions, ORM models
   integrations/  # External adapters such as AI extraction (future)
   main.py        # Application entry point
+alembic/         # Database migrations
 ```
 
 ## Local PostgreSQL (Docker)
@@ -35,7 +36,7 @@ Defaults (override with a root `.env` if needed):
 - User: `dme`
 - Password: `dme`
 - Database: `dme_order_intake`
-- Host port: `127.0.0.1:5432` (localhost only)
+- Host port: `127.0.0.1:5434` (localhost only; avoids a common clash with system Postgres on 5432)
 
 Stop PostgreSQL:
 
@@ -58,6 +59,18 @@ cp .env.example .env
 
 Edit `.env` as needed. Keep `DATABASE_URL` aligned with the Compose credentials. Do not commit real secrets.
 
+## Database migrations
+
+With PostgreSQL running and the virtualenv active:
+
+```bash
+cd backend
+alembic upgrade head
+alembic current
+```
+
+Schema changes must go through Alembic. The API does not call `create_all` on startup.
+
 ## Run the API (on the laptop, not in Docker)
 
 ```bash
@@ -75,6 +88,7 @@ Interactive docs (development): [http://127.0.0.1:8000/docs](http://127.0.0.1:80
 
 ## Notes
 
-- Authentication, order CRUD, database models/migrations, and AI extraction are intentionally out of scope for this slice.
+- Authentication, order CRUD, PDF extraction, and frontend work are intentionally out of scope for this slice.
+- ORM models live in `app/db/models.py` and stay separate from API request/response schemas.
 - SQLAlchemy 2.0 uses synchronous sessions with Psycopg 3. Request handlers obtain a session through `DbSessionDep`.
 - Configuration is loaded via Pydantic Settings from environment variables and an optional `.env` file.
