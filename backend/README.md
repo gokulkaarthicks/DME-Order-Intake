@@ -86,9 +86,19 @@ curl http://127.0.0.1:8000/health
 
 Interactive docs (development): [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs)
 
+## Tests
+
+Install test extras and run pytest from `backend/` (uses isolated DB `dme_order_intake_test` on port 5434):
+
+```bash
+pip install -e ".[test]"
+pytest
+```
+
 ## Notes
 
 - Auth endpoints: `POST /api/auth/register` and `POST /api/auth/login`.
+- Order CRUD endpoints: `POST/GET/PATCH/DELETE /api/orders` (JWT required; ownership enforced).
 - Set `JWT_SECRET_KEY` to a unique value of at least 32 characters before logging in. Do not commit real secrets.
 - ORM models live in `app/db/models.py` and stay separate from API request/response schemas.
 - SQLAlchemy 2.0 uses synchronous sessions with Psycopg 3. Request handlers obtain a session through `DbSessionDep`.

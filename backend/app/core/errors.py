@@ -41,9 +41,13 @@ async def validation_exception_handler(
     exc: RequestValidationError,
 ) -> JSONResponse:
     """Return field-oriented validation errors without leaking internals."""
+    detail = [
+        {key: value for key, value in error.items() if key != "ctx"}
+        for error in exc.errors()
+    ]
     return JSONResponse(
         status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-        content=_error_body(detail=exc.errors(), error_type="validation_error"),
+        content=_error_body(detail=detail, error_type="validation_error"),
     )
 
 

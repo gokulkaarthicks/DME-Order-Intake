@@ -10,8 +10,10 @@ from app.core.config import Settings, get_settings
 from app.core.security import TokenValidationError, verify_access_token
 from app.db.models import User
 from app.db.session import get_db
+from app.repositories.order_repository import OrderRepository
 from app.repositories.user_repository import UserRepository
 from app.services.auth_service import AuthService
+from app.services.order_service import OrderService
 
 SettingsDep = Annotated[Settings, Depends(get_settings)]
 DbSessionDep = Annotated[Session, Depends(get_db)]
@@ -25,6 +27,14 @@ def get_user_repository(session: DbSessionDep) -> UserRepository:
 
 
 UserRepositoryDep = Annotated[UserRepository, Depends(get_user_repository)]
+
+
+def get_order_repository(session: DbSessionDep) -> OrderRepository:
+    """Build a request-scoped order repository."""
+    return OrderRepository(session)
+
+
+OrderRepositoryDep = Annotated[OrderRepository, Depends(get_order_repository)]
 
 
 def get_auth_service(
@@ -41,6 +51,20 @@ def get_auth_service(
 
 
 AuthServiceDep = Annotated[AuthService, Depends(get_auth_service)]
+
+
+def get_order_service(
+    session: DbSessionDep,
+    order_repository: OrderRepositoryDep,
+) -> OrderService:
+    """Build a request-scoped order service."""
+    return OrderService(
+        session=session,
+        order_repository=order_repository,
+    )
+
+
+OrderServiceDep = Annotated[OrderService, Depends(get_order_service)]
 
 
 def get_current_user(

@@ -6,10 +6,13 @@ from app.services.auth_service import (
     DuplicateEmailError,
     InvalidCredentialsError,
 )
+from app.services.order_service import OrderNotFoundError, OrderService
 
 __all__ = [
     "AuthError",
     "AuthService",
     "DuplicateEmailError",
     "InvalidCredentialsError",
+    "OrderNotFoundError",
+    "OrderService",
 ]
