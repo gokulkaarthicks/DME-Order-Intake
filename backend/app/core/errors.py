@@ -41,8 +41,13 @@ async def validation_exception_handler(
     exc: RequestValidationError,
 ) -> JSONResponse:
     """Return field-oriented validation errors without leaking internals."""
+    # Omit ctx/input so validation responses do not echo submitted PHI or secrets.
     detail = [
-        {key: value for key, value in error.items() if key != "ctx"}
+        {
+            key: value
+            for key, value in error.items()
+            if key not in {"ctx", "input"}
+        }
         for error in exc.errors()
     ]
     return JSONResponse(

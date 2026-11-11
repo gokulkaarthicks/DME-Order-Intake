@@ -170,6 +170,22 @@ def test_cross_user_isolation(
     assert list_a.json()[0]["id"] == order_id
 
 
+def test_validation_errors_do_not_echo_input_payload(
+    client: TestClient,
+    valid_order_payload: dict[str, str],
+) -> None:
+    token = register_and_login(client, "novalinput@example.com")
+    headers = auth_header(token)
+    bad = dict(valid_order_payload)
+    bad["provider_npi"] = "1234567890"
+    response = client.post("/api/orders", json=bad, headers=headers)
+    assert response.status_code == 422
+    detail = response.json()["detail"]
+    assert isinstance(detail, list)
+    assert all("input" not in item for item in detail)
+    assert all("ctx" not in item for item in detail)
+
+
 def test_user_specific_listing_order(
     client: TestClient,
     valid_order_payload: dict[str, str],

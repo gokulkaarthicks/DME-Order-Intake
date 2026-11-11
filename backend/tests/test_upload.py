@@ -232,6 +232,22 @@ def test_non_pdf_upload_rejected(
     assert _count_orders() == 0
 
 
+def test_oversized_pdf_rejected_without_extraction(
+    upload_client: tuple[TestClient, FakeExtractor],
+) -> None:
+    client, fake = upload_client
+    token = register_and_login(client, "upload.oversize@example.com")
+    oversized = b"%PDF-1.4\n" + (b"0" * (11 * 1024 * 1024))
+    response = client.post(
+        "/api/orders/upload",
+        headers=auth_header(token),
+        files={"file": ("big.pdf", oversized, "application/pdf")},
+    )
+    assert response.status_code == 400
+    assert fake.calls == 0
+    assert _count_orders() == 0
+
+
 def test_upstream_api_failure_returns_bad_gateway(client: TestClient) -> None:
     fake = FakeExtractor(ExtractionProviderError("upstream down"))
     client.app.dependency_overrides[get_order_field_extractor] = lambda: fake

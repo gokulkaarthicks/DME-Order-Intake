@@ -2,19 +2,21 @@
 
 from __future__ import annotations
 
-import os
-
 import pytest
 from fastapi.testclient import TestClient
 
+from app.core.config import get_settings
 from tests.conftest import auth_header, register_and_login
 from tests.pdf_fixtures import SAMPLE_ORDER_LINES, build_scanned_pdf
 
-DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY", "").strip()
+
+def _deepseek_configured() -> bool:
+    get_settings.cache_clear()
+    return bool(get_settings().deepseek_api_key.strip())
 
 
 @pytest.mark.skipif(
-    not DEEPSEEK_API_KEY,
+    not _deepseek_configured(),
     reason="DEEPSEEK_API_KEY is not configured; live model verification remains pending",
 )
 def test_live_deepseek_scanned_pdf_extraction(client: TestClient) -> None:
@@ -37,3 +39,6 @@ def test_live_deepseek_scanned_pdf_extraction(client: TestClient) -> None:
         "provider_name",
         "provider_npi",
     }
+    if body["status"] == "created":
+        assert body["saved"] is True
+        assert body["order_id"] is not None
