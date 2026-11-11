@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from uuid import UUID
+
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -13,6 +15,10 @@ class UserRepository:
 
     def __init__(self, session: Session) -> None:
         self._session = session
+
+    def get_by_id(self, user_id: UUID) -> User | None:
+        """Return a user by primary key, or None when not found."""
+        return self._session.get(User, user_id)
 
     def get_by_email(self, email: str) -> User | None:
         """Return a user by normalized email, or None when not found."""

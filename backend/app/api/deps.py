@@ -2,16 +2,21 @@
 
 from typing import Annotated
 
-from fastapi import Depends
+from fastapi import Depends, HTTPException, status
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.orm import Session
 
 from app.core.config import Settings, get_settings
+from app.core.security import TokenValidationError, verify_access_token
+from app.db.models import User
 from app.db.session import get_db
 from app.repositories.user_repository import UserRepository
 from app.services.auth_service import AuthService
 
 SettingsDep = Annotated[Settings, Depends(get_settings)]
 DbSessionDep = Annotated[Session, Depends(get_db)]
+
+_bearer_scheme = HTTPBearer(auto_error=False)
 
 
 def get_user_repository(session: DbSessionDep) -> UserRepository:
@@ -36,3 +41,43 @@ def get_auth_service(
 
 
 AuthServiceDep = Annotated[AuthService, Depends(get_auth_service)]
+
+
+def get_current_user(
+    credentials: Annotated[
+        HTTPAuthorizationCredentials | None,
+        Depends(_bearer_scheme),
+    ],
+    settings: SettingsDep,
+    user_repository: UserRepositoryDep,
+) -> User:
+    """Resolve the authenticated user exclusively from a verified Bearer JWT."""
+    if (
+        credentials is None
+        or credentials.scheme.lower() != "bearer"
+        or not credentials.credentials
+    ):
+        raise _unauthorized()
+
+    try:
+        user_id = verify_access_token(credentials.credentials, settings)
+    except TokenValidationError as exc:
+        raise _unauthorized() from exc
+
+    user = user_repository.get_by_id(user_id)
+    if user is None:
+        raise _unauthorized()
+
+    return user
+
+
+CurrentUserDep = Annotated[User, Depends(get_current_user)]
+
+
+def _unauthorized() -> HTTPException:
+    """Build a consistent 401 response for authentication failures."""
+    return HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Not authenticated",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
