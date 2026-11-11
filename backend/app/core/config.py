@@ -34,6 +34,20 @@ class Settings(BaseSettings):
         description="Additional connections allowed above the pool size",
     )
 
+    jwt_secret_key: str = Field(
+        default="",
+        description="Secret used to sign JWT access tokens (required for auth; min 32 chars)",
+    )
+    jwt_algorithm: str = Field(
+        default="HS256",
+        description="JWT signing algorithm",
+    )
+    access_token_expire_minutes: int = Field(
+        default=60,
+        ge=1,
+        description="Access token lifetime in minutes",
+    )
+
 
 @lru_cache
 def get_settings() -> Settings:

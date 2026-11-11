@@ -88,7 +88,8 @@ Interactive docs (development): [http://127.0.0.1:8000/docs](http://127.0.0.1:80
 
 ## Notes
 
-- Authentication, order CRUD, PDF extraction, and frontend work are intentionally out of scope for this slice.
+- Auth schemas and security helpers (Argon2 + JWT) are in place; registration/login endpoints are not wired yet.
+- Set `JWT_SECRET_KEY` to a unique value of at least 32 characters before issuing tokens. Do not commit real secrets.
 - ORM models live in `app/db/models.py` and stay separate from API request/response schemas.
 - SQLAlchemy 2.0 uses synchronous sessions with Psycopg 3. Request handlers obtain a session through `DbSessionDep`.
 - Configuration is loaded via Pydantic Settings from environment variables and an optional `.env` file.
