@@ -24,6 +24,16 @@ class Settings(BaseSettings):
     host: str = Field(default="0.0.0.0", description="Uvicorn bind host")
     port: int = Field(default=8000, description="Uvicorn bind port")
 
+    database_url: str = Field(
+        default="postgresql+psycopg://dme:dme@127.0.0.1:5432/dme_order_intake",
+        description="SQLAlchemy database URL (PostgreSQL + Psycopg 3)",
+    )
+    db_pool_size: int = Field(default=5, description="SQLAlchemy connection pool size")
+    db_max_overflow: int = Field(
+        default=10,
+        description="Additional connections allowed above the pool size",
+    )
+
 
 @lru_cache
 def get_settings() -> Settings:

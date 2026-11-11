@@ -12,6 +12,7 @@ from app.api.router import api_router
 from app.core.config import get_settings
 from app.core.errors import register_exception_handlers
 from app.core.logging import configure_logging
+from app.db.session import dispose_engine
 
 logger = logging.getLogger(__name__)
 
@@ -26,8 +27,11 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         settings.app_name,
         settings.environment,
     )
-    yield
-    logger.info("Shutting down %s", settings.app_name)
+    try:
+        yield
+    finally:
+        dispose_engine()
+        logger.info("Shutting down %s", settings.app_name)
 
 
 def create_app() -> FastAPI:
