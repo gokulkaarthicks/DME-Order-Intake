@@ -2,7 +2,7 @@
 
 from functools import lru_cache
 
-from pydantic import Field
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -25,9 +25,20 @@ class Settings(BaseSettings):
     port: int = Field(default=8000, description="Uvicorn bind port")
 
     database_url: str = Field(
-        default="postgresql+psycopg://dme:dme@127.0.0.1:5434/dme_order_intake",
+        default="",
         description="SQLAlchemy database URL (PostgreSQL + Psycopg 3)",
     )
+
+    @field_validator("database_url", mode="before")
+    @classmethod
+    def normalize_database_url(cls, value: str) -> str:
+        """Use Psycopg 3 for standard PostgreSQL URLs supplied by hosting providers."""
+        if isinstance(value, str):
+            for prefix in ("postgres://", "postgresql://"):
+                if value.startswith(prefix):
+                    return "postgresql+psycopg://" + value[len(prefix):]
+        return value
+
     db_pool_size: int = Field(default=5, description="SQLAlchemy connection pool size")
     db_max_overflow: int = Field(
         default=10,

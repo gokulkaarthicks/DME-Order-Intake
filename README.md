@@ -38,3 +38,16 @@ docker compose down
 Orders are created by PDF upload. If extraction needs review, save it for human review and return later, or correct the fields immediately and resubmit with the original PDF. Saved reviews do not retain the PDF. Existing orders can still be edited or deleted.
 
 See [backend/README.md](backend/README.md) and [frontend/README.md](frontend/README.md) for application and test details.
+
+## Render deployment preparation
+
+Set `DATABASE_URL` explicitly for every environment. The development Compose file supplies its local database URL. The root Dockerfile builds the frontend and serves its static assets from FastAPI at the same origin. It runs Alembic before starting one Uvicorn process, using Render's `PORT`. The root `.dockerignore` and explicit `COPY` instructions keep local environment files, PDFs, tests, and development dependencies out of the runtime image. The development Compose setup is unchanged.
+
+To deploy after reviewing the repository and authorizing deployment:
+
+1. Push the deployment branch to a Git provider connected to Render. In Render, choose **New > Blueprint**, select the repository and branch, and use the root `render.yaml`.
+2. Supply `DEEPSEEK_API_KEY` in the Blueprint setup. Render generates `JWT_SECRET_KEY` and supplies the database connection string. Keep both secrets in Render, never in Git or frontend variables. The database and web service must be in the same region.
+3. Create the Blueprint. Render builds the Dockerfile, creates the free PostgreSQL database, and starts the web service. Migrations run during each start and a failure prevents the server from starting. Review the build and service logs without exposing credentials or patient data.
+4. Open the assigned HTTPS URL, check `/health` and `/docs`, then verify registration, login, upload, correction, saved human review, and order management. Check ownership with a second account. Verify extraction against authorized digital and scanned multi-page PDFs with the real provider. Do not claim a public smoke test passed until it has been performed.
+
+Render Free spins down after inactivity. Free PostgreSQL expires after 30 days and has no backups. Render advises against using free instances for production applications. Review the [current free tier limitations](https://render.com/docs/free) before using this deployment, especially for sensitive data. The PDF processor limits upload bytes and page count, but does not cap page dimensions or total rendered image memory. Large or complex PDFs and concurrent requests can exhaust free instance memory. Real extraction and provider compatibility require separate verification.
