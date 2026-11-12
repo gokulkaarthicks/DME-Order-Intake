@@ -1,5 +1,7 @@
 # DME Order Intake
 
+**Live application:** [https://dme-order-intake-cfpg.onrender.com/](https://dme-order-intake-cfpg.onrender.com/)
+
 Run PostgreSQL, FastAPI, and React locally with Docker Compose. Docker Desktop or Docker Engine with Compose is required.
 
 **Need a random NPI for testing? Use the [NPI generation endpoint](https://usegraft.dev/docs#create-npi).**
