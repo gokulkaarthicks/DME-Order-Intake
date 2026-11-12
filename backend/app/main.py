@@ -3,10 +3,13 @@
 from __future__ import annotations
 
 import logging
-from contextlib import asynccontextmanager
 from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
+from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 
 from app.api.router import api_router
 from app.core.config import get_settings
@@ -46,6 +49,22 @@ def create_app() -> FastAPI:
 
     register_exception_handlers(app)
     app.include_router(api_router)
+
+    # The production image provides this directory. Development continues to use Vite.
+    frontend_dir = Path(__file__).resolve().parent.parent / "frontend_dist"
+    if (frontend_dir / "index.html").is_file():
+        app.mount("/assets", StaticFiles(directory=frontend_dir / "assets"), name="assets")
+
+        @app.get("/{path:path}", include_in_schema=False)
+        def frontend(path: str) -> FileResponse:
+            if path == "api" or path.startswith("api/") or path in {
+                "health", "docs", "redoc", "openapi.json"
+            }:
+                raise HTTPException(status_code=404, detail="Not Found")
+            candidate = (frontend_dir / path).resolve()
+            if candidate.is_relative_to(frontend_dir.resolve()) and candidate.is_file():
+                return FileResponse(candidate)
+            return FileResponse(frontend_dir / "index.html")
 
     return app
 
