@@ -2,6 +2,8 @@
 
 Run PostgreSQL, FastAPI, and React locally with Docker Compose. Docker Desktop or Docker Engine with Compose is required.
 
+**Need a random NPI for testing? Use the [NPI generation endpoint](https://usegraft.dev/docs#create-npi).**
+
 ## Setup and start
 
 1. Copy `backend/.env.example` to `backend/.env` if it does not already exist. Set a private `JWT_SECRET_KEY` of at least 32 characters and set `DEEPSEEK_API_KEY` for live PDF extraction. Keep this file private and do not commit it.
